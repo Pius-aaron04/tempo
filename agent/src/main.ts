@@ -4,6 +4,7 @@ import * as net from 'net';
 import * as fs from 'fs';
 import { ensureDataDir, SOCKET_PATH } from './paths';
 import { TempoDatabase } from './database';
+import { IpcRequestSchema, IpcResponse } from '@tempo/contracts';
 
 async function main() {
   ensureDataDir();
@@ -12,8 +13,25 @@ async function main() {
 
   const server = net.createServer((socket) => {
     console.log('Client connected');
+
     socket.on('data', (data) => {
-      console.log('Received:', data.toString());
+      try {
+        const rawMessage = data.toString();
+        // Handle potentially multiple newline-delimited messages
+        const messages = rawMessage.split('\n').filter(s => s.trim().length > 0);
+
+        for (const msgStr of messages) {
+           handleMessage(socket, db, msgStr);
+        }
+
+      } catch (err) {
+        console.error('Error processing data:', err);
+        sendResponse(socket, { success: false, error: 'Invalid data format' });
+      }
+    });
+    
+    socket.on('error', (err) => {
+        console.error('Socket connection error:', err);
     });
   });
 
@@ -29,7 +47,7 @@ async function main() {
         if (connectErr.code === 'ECONNREFUSED') {
           // Socket is stale, remove it and restart
           console.log('Removing stale socket...');
-          fs.unlinkSync(SOCKET_PATH);
+          if (fs.existsSync(SOCKET_PATH)) fs.unlinkSync(SOCKET_PATH);
           server.listen(SOCKET_PATH);
         } else {
           console.error('Socket error:', connectErr);
@@ -59,6 +77,55 @@ async function main() {
 
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
+}
+
+function handleMessage(socket: net.Socket, db: TempoDatabase, msgStr: string) {
+    let parsed: any;
+    try {
+        parsed = JSON.parse(msgStr);
+    } catch (e) {
+        return sendResponse(socket, { success: false, error: 'Invalid JSON' });
+    }
+
+    const validation = IpcRequestSchema.safeParse(parsed);
+
+    if (!validation.success) {
+        console.warn('Invalid IPC Request:', validation.error);
+        return sendResponse(socket, { success: false, error: 'Schema validation failed', data: validation.error });
+    }
+
+    const req = validation.data;
+
+    if (req.type === 'ping') {
+        return sendResponse(socket, { success: true, data: 'pong' });
+    }
+
+    if (req.type === 'emit_event') {
+        try {
+            console.log(`Received event: ${req.event.type} from ${req.event.source}`);
+            db.insertEvent(req.event);
+            return sendResponse(socket, { success: true });
+        } catch (e: any) {
+            console.error('Failed to insert event:', e);
+            return sendResponse(socket, { success: false, error: e.message });
+        }
+    }
+
+    if (req.type === 'query_events') {
+        try {
+            const events = db.getRecentEvents(req.limit);
+            return sendResponse(socket, { success: true, data: events });
+        } catch (e: any) {
+             console.error('Failed to query events:', e);
+             return sendResponse(socket, { success: false, error: e.message });
+        }
+    }
+}
+
+function sendResponse(socket: net.Socket, response: IpcResponse) {
+    if (socket.writable) {
+        socket.write(JSON.stringify(response) + '\n');
+    }
 }
 
 main().catch((err) => {
