@@ -45,13 +45,40 @@ export const TempoEventSchema = z.discriminatedUnion('type', [
 export type TempoEvent = z.infer<typeof TempoEventSchema>;
 
 
+// --- Session Definitions ---
+
+export const SessionStatus = z.enum(['active', 'completed']);
+export type SessionStatus = z.infer<typeof SessionStatus>;
+
+export const SessionContext = z.object({
+  project_path: z.string().optional(),
+  file_path: z.string().optional(),
+  language: z.string().optional(),
+  app_name: z.string().optional(),
+});
+export type SessionContext = z.infer<typeof SessionContext>;
+
+export const SessionSchema = z.object({
+  id: z.string().optional(), // Database ID
+  start_time: z.string().datetime(),
+  last_active_time: z.string().datetime(),
+  end_time: z.string().datetime().optional(), // Only set when status is completed
+  duration_seconds: z.number().default(0),
+  status: SessionStatus,
+  context: SessionContext,
+});
+
+export type TempoSession = z.infer<typeof SessionSchema>;
+
+
 // --- IPC Definitions ---
 
-export const IpcRequestType = z.enum(['emit_event', 'query_events', 'ping']);
+export const IpcRequestType = z.enum(['emit_event', 'query_events', 'query_sessions', 'ping']);
 
 export const IpcRequestSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('emit_event'), event: TempoEventSchema }),
   z.object({ type: z.literal('query_events'), limit: z.number().optional().default(50) }),
+  z.object({ type: z.literal('query_sessions'), limit: z.number().optional().default(50) }),
   z.object({ type: z.literal('ping') }),
 ]);
 

@@ -4,24 +4,25 @@ import * as net from 'net';
 import * as fs from 'fs';
 import { ensureDataDir, SOCKET_PATH } from './paths';
 import { TempoDatabase } from './database';
+import { SessionManager } from './sessions';
 import { IpcRequestSchema, IpcResponse } from '@tempo/contracts';
 
 async function main() {
   ensureDataDir();
 
   const db = new TempoDatabase();
+  const sessionManager = new SessionManager(db);
 
   const server = net.createServer((socket) => {
     console.log('Client connected');
 
-    socket.on('data', (data) => {
+    socket.on('data', async (data) => {
       try {
         const rawMessage = data.toString();
-        // Handle potentially multiple newline-delimited messages
         const messages = rawMessage.split('\n').filter(s => s.trim().length > 0);
 
         for (const msgStr of messages) {
-           handleMessage(socket, db, msgStr);
+           await handleMessage(socket, db, sessionManager, msgStr);
         }
 
       } catch (err) {
@@ -37,7 +38,6 @@ async function main() {
 
   server.on('error', (err: any) => {
     if (err.code === 'EADDRINUSE') {
-      // Check if the socket is actually active
       const client = net.connect(SOCKET_PATH, () => {
         console.error('Tempo Agent is already running.');
         process.exit(1);
@@ -45,7 +45,6 @@ async function main() {
 
       client.on('error', (connectErr: any) => {
         if (connectErr.code === 'ECONNREFUSED') {
-          // Socket is stale, remove it and restart
           console.log('Removing stale socket...');
           if (fs.existsSync(SOCKET_PATH)) fs.unlinkSync(SOCKET_PATH);
           server.listen(SOCKET_PATH);
@@ -64,9 +63,9 @@ async function main() {
     console.log(`Tempo Agent listening on ${SOCKET_PATH}`);
   });
 
-  // Cleanup on exit
   const cleanup = () => {
     console.log('Shutting down...');
+    sessionManager.shutdown();
     server.close();
     db.close();
     if (fs.existsSync(SOCKET_PATH)) {
@@ -79,7 +78,7 @@ async function main() {
   process.on('SIGTERM', cleanup);
 }
 
-function handleMessage(socket: net.Socket, db: TempoDatabase, msgStr: string) {
+async function handleMessage(socket: net.Socket, db: TempoDatabase, sessionManager: SessionManager, msgStr: string) {
     let parsed: any;
     try {
         parsed = JSON.parse(msgStr);
@@ -104,9 +103,10 @@ function handleMessage(socket: net.Socket, db: TempoDatabase, msgStr: string) {
         try {
             console.log(`Received event: ${req.event.type} from ${req.event.source}`);
             db.insertEvent(req.event);
+            await sessionManager.processEvent(req.event);
             return sendResponse(socket, { success: true });
         } catch (e: any) {
-            console.error('Failed to insert event:', e);
+            console.error('Failed to insert event/session:', e);
             return sendResponse(socket, { success: false, error: e.message });
         }
     }
@@ -117,6 +117,16 @@ function handleMessage(socket: net.Socket, db: TempoDatabase, msgStr: string) {
             return sendResponse(socket, { success: true, data: events });
         } catch (e: any) {
              console.error('Failed to query events:', e);
+             return sendResponse(socket, { success: false, error: e.message });
+        }
+    }
+
+    if (req.type === 'query_sessions') {
+        try {
+            const sessions = db.getRecentSessions(req.limit);
+            return sendResponse(socket, { success: true, data: sessions });
+        } catch (e: any) {
+             console.error('Failed to query sessions:', e);
              return sendResponse(socket, { success: false, error: e.message });
         }
     }

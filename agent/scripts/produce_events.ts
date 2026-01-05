@@ -12,47 +12,77 @@ const client = net.createConnection(SOCKET_PATH, () => {
 });
 
 client.on('data', (data) => {
-  console.log('Response:', data.toString());
-});
-
-client.on('end', () => {
-  console.log('Disconnected from server');
-});
-
-client.on('error', (err) => {
-  console.error('Connection error:', err);
+  const responses = data.toString().split('\n').filter(s => s.trim().length > 0);
+  for (const res of responses) {
+    const parsed = JSON.parse(res);
+    if (parsed.data && Array.isArray(parsed.data) && parsed.data.length > 0 && 'start_time' in parsed.data[0]) {
+        console.log('--- Recent Sessions ---');
+        console.table(parsed.data.map((s: any) => ({
+            id: s.id,
+            duration: s.duration_seconds + 's',
+            project: s.context.project_path || 'N/A',
+            app: s.context.app_name || 'N/A',
+            status: s.status
+        })));
+    } else {
+        console.log('Response:', res);
+    }
+  }
 });
 
 async function produceEvents() {
+  const now = Date.now();
+  
   const events: IpcRequest[] = [
+    // 1. Start working on Project A
     {
       type: 'emit_event',
       event: {
-        type: 'app_active',
-        source: 'macos_observer',
-        timestamp: new Date().toISOString(),
-        payload: { app_name: 'VS Code', window_title: 'main.ts - tempo' }
+        type: 'file_open',
+        source: 'vscode',
+        timestamp: new Date(now - 10000).toISOString(),
+        payload: { file_path: 'src/index.ts', project_path: '/work/project-a' }
       }
     },
+    // 2. Edit Project A (Extend session)
     {
       type: 'emit_event',
       event: {
         type: 'file_edit',
         source: 'vscode',
-        timestamp: new Date().toISOString(),
-        payload: { file_path: '/home/user/work/tempo/agent/src/main.ts', language: 'typescript' }
+        timestamp: new Date(now - 5000).toISOString(),
+        payload: { file_path: 'src/index.ts', project_path: '/work/project-a', language: 'typescript' }
+      }
+    },
+    // 3. Switch to Project B (New session)
+    {
+      type: 'emit_event',
+      event: {
+        type: 'file_open',
+        source: 'vscode',
+        timestamp: new Date(now - 4000).toISOString(),
+        payload: { file_path: 'README.md', project_path: '/work/project-b' }
+      }
+    },
+    // 4. Idle gap (simulated by a jump in time) - This should start a new session because of the gap
+    {
+      type: 'emit_event',
+      event: {
+        type: 'app_active',
+        source: 'macos',
+        timestamp: new Date(now + 300000).toISOString(), // 5 mins later
+        payload: { app_name: 'Chrome', window_title: 'Stack Overflow' }
       }
     },
     {
-       type: 'query_events',
+       type: 'query_sessions',
        limit: 10
     }
   ];
 
   for (const event of events) {
-    console.log('Sending:', event.type);
     client.write(JSON.stringify(event) + '\n');
-    await new Promise(resolve => setTimeout(resolve, 500)); // Small delay
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   client.end();

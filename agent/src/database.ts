@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { DB_PATH } from './paths';
-import { TempoEvent } from '@tempo/contracts';
+import { TempoEvent, TempoSession } from '@tempo/contracts';
 
 export class TempoDatabase {
   private db: Database.Database;
@@ -25,6 +25,16 @@ export class TempoDatabase {
         timestamp TEXT NOT NULL,
         source TEXT NOT NULL,
         payload TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        start_time TEXT NOT NULL,
+        last_active_time TEXT NOT NULL,
+        end_time TEXT,
+        duration_seconds INTEGER DEFAULT 0,
+        status TEXT NOT NULL,
+        context TEXT NOT NULL
       );
     `);
   }
@@ -52,7 +62,71 @@ export class TempoDatabase {
       timestamp: row.timestamp,
       source: row.source,
       payload: JSON.parse(row.payload),
-    })) as TempoEvent[]; // Casting because we trust our storage, but validation on read could be added
+    })) as TempoEvent[];
+  }
+
+  public createSession(session: TempoSession): string {
+    const stmt = this.db.prepare(
+      'INSERT INTO sessions (start_time, last_active_time, end_time, duration_seconds, status, context) VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    const result = stmt.run(
+      session.start_time,
+      session.last_active_time,
+      session.end_time || null,
+      session.duration_seconds,
+      session.status,
+      JSON.stringify(session.context)
+    );
+    return result.lastInsertRowid.toString();
+  }
+
+  public updateSession(id: string, updates: Partial<TempoSession>) {
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (updates.last_active_time) {
+      fields.push('last_active_time = ?');
+      values.push(updates.last_active_time);
+    }
+    if (updates.end_time !== undefined) {
+      fields.push('end_time = ?');
+      values.push(updates.end_time || null);
+    }
+    if (updates.duration_seconds !== undefined) {
+      fields.push('duration_seconds = ?');
+      values.push(updates.duration_seconds);
+    }
+    if (updates.status) {
+      fields.push('status = ?');
+      values.push(updates.status);
+    }
+    if (updates.context) {
+      fields.push('context = ?');
+      values.push(JSON.stringify(updates.context));
+    }
+
+    if (fields.length === 0) return;
+
+    values.push(id);
+    const stmt = this.db.prepare(`UPDATE sessions SET ${fields.join(', ')} WHERE id = ?`);
+    stmt.run(...values);
+  }
+
+  public getRecentSessions(limit: number): TempoSession[] {
+    const stmt = this.db.prepare(
+      'SELECT id, start_time, last_active_time, end_time, duration_seconds, status, context FROM sessions ORDER BY start_time DESC LIMIT ?'
+    );
+    const rows = stmt.all(limit) as any[];
+
+    return rows.map((row) => ({
+      id: row.id.toString(),
+      start_time: row.start_time,
+      last_active_time: row.last_active_time,
+      end_time: row.end_time || undefined,
+      duration_seconds: row.duration_seconds,
+      status: row.status,
+      context: JSON.parse(row.context),
+    })) as TempoSession[];
   }
 
   public close() {
