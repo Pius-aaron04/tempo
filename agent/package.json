@@ -1,0 +1,27 @@
+{
+  "name": "@tempo/agent",
+  "version": "1.0.0",
+  "description": "Core engine for db interactions and desicion making",
+  "main": "dist/main.js",
+  "bin": {
+    "tempo-agent": "dist/main.js"
+  },
+  "scripts": {
+    "dev": "ts-node src/main.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.21.0",
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.5.0"
+  }
+}

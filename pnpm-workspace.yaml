@@ -1,0 +1,8 @@
+packages:
+  - agent
+  - ui
+  - vscode-extension
+  - packages/*
+
+ignoredBuiltDependencies:
+  - better-sqlite3
