@@ -1,13 +1,36 @@
 {
-  "name": "vscode-extension",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "name": "tempo-vscode",
+  "displayName": "Tempo",
+  "description": "Local-first developer activity tracker",
+  "version": "0.0.1",
+  "publisher": "tempo",
+  "engines": {
+    "vscode": "^1.80.0"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.21.0"
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {},
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.21.0",
+  "dependencies": {
+    "@tempo/contracts": "workspace:*",
+    "zod": "^4.3.5"
+  }
 }
