@@ -1,13 +1,27 @@
 {
-  "name": "ui",
+  "name": "@tempo/ui",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Desktop UI for Tempo",
+  "main": "dist-electron/main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "tsc && vite build && tsc -p tsconfig.electron.json",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"pnpm run dev\" \"wait-on tcp:127.0.0.1:5173 && NODE_ENV=development electron . --no-sandbox\""
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.21.0"
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@tempo/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "electron": "^25.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^4.3.0",
+    "concurrently": "^8.0.0",
+    "wait-on": "^7.0.0"
+  }
 }

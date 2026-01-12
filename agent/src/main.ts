@@ -22,7 +22,7 @@ async function main() {
         const messages = rawMessage.split('\n').filter(s => s.trim().length > 0);
 
         for (const msgStr of messages) {
-           await handleMessage(socket, db, sessionManager, msgStr);
+          await handleMessage(socket, db, sessionManager, msgStr);
         }
 
       } catch (err) {
@@ -30,9 +30,9 @@ async function main() {
         sendResponse(socket, { success: false, error: 'Invalid data format' });
       }
     });
-    
+
     socket.on('error', (err) => {
-        console.error('Socket connection error:', err);
+      console.error('Socket connection error:', err);
     });
   });
 
@@ -79,63 +79,73 @@ async function main() {
 }
 
 async function handleMessage(socket: net.Socket, db: TempoDatabase, sessionManager: SessionManager, msgStr: string) {
-    let parsed: any;
+  let parsed: any;
+  try {
+    parsed = JSON.parse(msgStr);
+  } catch (e) {
+    return sendResponse(socket, { success: false, error: 'Invalid JSON' });
+  }
+
+  const validation = IpcRequestSchema.safeParse(parsed);
+
+  if (!validation.success) {
+    console.warn('Invalid IPC Request:', validation.error);
+    return sendResponse(socket, { success: false, error: 'Schema validation failed', data: validation.error });
+  }
+
+  const req = validation.data;
+
+  if (req.type === 'ping') {
+    return sendResponse(socket, { success: true, data: 'pong' });
+  }
+
+  if (req.type === 'emit_event') {
     try {
-        parsed = JSON.parse(msgStr);
-    } catch (e) {
-        return sendResponse(socket, { success: false, error: 'Invalid JSON' });
+      console.log(`Received event: ${req.event.type} from ${req.event.source}`);
+      db.insertEvent(req.event);
+      await sessionManager.processEvent(req.event);
+      return sendResponse(socket, { success: true });
+    } catch (e: any) {
+      console.error('Failed to insert event/session:', e);
+      return sendResponse(socket, { success: false, error: e.message });
     }
+  }
 
-    const validation = IpcRequestSchema.safeParse(parsed);
-
-    if (!validation.success) {
-        console.warn('Invalid IPC Request:', validation.error);
-        return sendResponse(socket, { success: false, error: 'Schema validation failed', data: validation.error });
+  if (req.type === 'query_events') {
+    try {
+      const events = db.getRecentEvents(req.limit);
+      return sendResponse(socket, { success: true, data: events });
+    } catch (e: any) {
+      console.error('Failed to query events:', e);
+      return sendResponse(socket, { success: false, error: e.message });
     }
+  }
 
-    const req = validation.data;
-
-    if (req.type === 'ping') {
-        return sendResponse(socket, { success: true, data: 'pong' });
+  if (req.type === 'query_sessions') {
+    try {
+      const sessions = db.getRecentSessions(req.limit);
+      return sendResponse(socket, { success: true, data: sessions });
+    } catch (e: any) {
+      console.error('Failed to query sessions:', e);
+      return sendResponse(socket, { success: false, error: e.message });
     }
+  }
 
-    if (req.type === 'emit_event') {
-        try {
-            console.log(`Received event: ${req.event.type} from ${req.event.source}`);
-            db.insertEvent(req.event);
-            await sessionManager.processEvent(req.event);
-            return sendResponse(socket, { success: true });
-        } catch (e: any) {
-            console.error('Failed to insert event/session:', e);
-            return sendResponse(socket, { success: false, error: e.message });
-        }
+  if (req.type === 'query_analytics') {
+    try {
+      const results = db.getAnalytics(req.groupBy);
+      return sendResponse(socket, { success: true, data: results });
+    } catch (e: any) {
+      console.error('Failed to query analytics:', e);
+      return sendResponse(socket, { success: false, error: e.message });
     }
-
-    if (req.type === 'query_events') {
-        try {
-            const events = db.getRecentEvents(req.limit);
-            return sendResponse(socket, { success: true, data: events });
-        } catch (e: any) {
-             console.error('Failed to query events:', e);
-             return sendResponse(socket, { success: false, error: e.message });
-        }
-    }
-
-    if (req.type === 'query_sessions') {
-        try {
-            const sessions = db.getRecentSessions(req.limit);
-            return sendResponse(socket, { success: true, data: sessions });
-        } catch (e: any) {
-             console.error('Failed to query sessions:', e);
-             return sendResponse(socket, { success: false, error: e.message });
-        }
-    }
+  }
 }
 
 function sendResponse(socket: net.Socket, response: IpcResponse) {
-    if (socket.writable) {
-        socket.write(JSON.stringify(response) + '\n');
-    }
+  if (socket.writable) {
+    socket.write(JSON.stringify(response) + '\n');
+  }
 }
 
 main().catch((err) => {

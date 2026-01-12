@@ -71,14 +71,27 @@ export const SessionSchema = z.object({
 export type TempoSession = z.infer<typeof SessionSchema>;
 
 
+// --- Analytics Definitions ---
+
+export const AnalyticsGroupBy = z.enum(['hour', 'day', 'month', 'project', 'language']);
+export type AnalyticsGroupBy = z.infer<typeof AnalyticsGroupBy>;
+
+export const AnalyticsResultItem = z.object({
+  key: z.string(),
+  total_duration_seconds: z.number(),
+  session_count: z.number(),
+});
+export type AnalyticsResultItem = z.infer<typeof AnalyticsResultItem>;
+
 // --- IPC Definitions ---
 
-export const IpcRequestType = z.enum(['emit_event', 'query_events', 'query_sessions', 'ping']);
+export const IpcRequestType = z.enum(['emit_event', 'query_events', 'query_sessions', 'query_analytics', 'ping']);
 
 export const IpcRequestSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('emit_event'), event: TempoEventSchema }),
   z.object({ type: z.literal('query_events'), limit: z.number().optional().default(50) }),
   z.object({ type: z.literal('query_sessions'), limit: z.number().optional().default(50) }),
+  z.object({ type: z.literal('query_analytics'), groupBy: AnalyticsGroupBy }),
   z.object({ type: z.literal('ping') }),
 ]);
 

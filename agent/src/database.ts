@@ -129,6 +129,53 @@ export class TempoDatabase {
     })) as TempoSession[];
   }
 
+  public getAnalytics(groupBy: string): any[] {
+    let groupByClause = '';
+    let selectKey = '';
+
+    switch (groupBy) {
+      case 'hour':
+        // SQLite strftime '%H' returns 00-23
+        selectKey = "strftime('%H', start_time) as key";
+        groupByClause = "strftime('%H', start_time)";
+        break;
+      case 'day':
+        // SQLite date returns YYYY-MM-DD
+        selectKey = "date(start_time) as key";
+        groupByClause = "date(start_time)";
+        break;
+      case 'month':
+        selectKey = "strftime('%Y-%m', start_time) as key";
+        groupByClause = "strftime('%Y-%m', start_time)";
+        break;
+      case 'project':
+        // Extract project_path from JSON context
+        selectKey = "json_extract(context, '$.project_path') as key";
+        groupByClause = "json_extract(context, '$.project_path')";
+        break;
+      case 'language':
+        selectKey = "json_extract(context, '$.language') as key";
+        groupByClause = "json_extract(context, '$.language')";
+        break;
+      default:
+        throw new Error(`Invalid groupBy: ${groupBy}`);
+    }
+
+    const query = `
+      SELECT 
+        ${selectKey}, 
+        SUM(duration_seconds) as total_duration_seconds, 
+        COUNT(*) as session_count 
+      FROM sessions 
+      WHERE key IS NOT NULL
+      GROUP BY ${groupByClause} 
+      ORDER BY total_duration_seconds DESC
+    `;
+
+    const stmt = this.db.prepare(query);
+    return stmt.all();
+  }
+
   public close() {
     this.db.close();
   }
