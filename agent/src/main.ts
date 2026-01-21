@@ -123,7 +123,7 @@ async function handleMessage(socket: net.Socket, db: TempoDatabase, sessionManag
 
   if (req.type === 'query_sessions') {
     try {
-      const sessions = db.getRecentSessions(req.limit);
+      const sessions = db.getRecentSessions(req.limit, req.startTime, req.endTime);
       return sendResponse(socket, { success: true, data: sessions });
     } catch (e: any) {
       console.error('Failed to query sessions:', e);
@@ -133,10 +133,20 @@ async function handleMessage(socket: net.Socket, db: TempoDatabase, sessionManag
 
   if (req.type === 'query_analytics') {
     try {
-      const results = db.getAnalytics(req.groupBy);
+      const results = db.getAnalytics(req.groupBy, req.startTime, req.endTime);
       return sendResponse(socket, { success: true, data: results });
     } catch (e: any) {
       console.error('Failed to query analytics:', e);
+      return sendResponse(socket, { success: false, error: e.message });
+    }
+  }
+
+  if (req.type === 'query_trend') {
+    try {
+      const results = db.getTrend(req.groupBy, req.days || 7);
+      return sendResponse(socket, { success: true, data: results });
+    } catch (e: any) {
+      console.error('Failed to query trends:', e);
       return sendResponse(socket, { success: false, error: e.message });
     }
   }

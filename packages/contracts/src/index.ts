@@ -10,6 +10,7 @@ export const EventType = z.enum([
   'idle_start', // User went idle (detected by integration or agent)
   'idle_end',   // User returned
   'shutdown',   // Agent or System shutting down
+  'user_activity', // Interactions like scrolling or cursor movement
 ]);
 
 export type EventType = z.infer<typeof EventType>;
@@ -31,6 +32,13 @@ export const FileEventPayload = z.object({
   project_path: z.string().optional(),
 });
 
+export const UserActivityPayload = z.object({
+  kind: z.enum(['scroll', 'cursor']),
+  file_path: z.string().optional(),
+  project_path: z.string().optional(),
+  language: z.string().optional(),
+});
+
 // Discriminated union for events
 export const TempoEventSchema = z.discriminatedUnion('type', [
   BaseEventSchema.extend({ type: z.literal('app_active'), payload: AppActivePayload }),
@@ -40,6 +48,7 @@ export const TempoEventSchema = z.discriminatedUnion('type', [
   BaseEventSchema.extend({ type: z.literal('idle_start'), payload: z.object({}) }),
   BaseEventSchema.extend({ type: z.literal('idle_end'), payload: z.object({}) }),
   BaseEventSchema.extend({ type: z.literal('shutdown'), payload: z.object({}) }),
+  BaseEventSchema.extend({ type: z.literal('user_activity'), payload: UserActivityPayload }),
 ]);
 
 export type TempoEvent = z.infer<typeof TempoEventSchema>;
@@ -83,15 +92,25 @@ export const AnalyticsResultItem = z.object({
 });
 export type AnalyticsResultItem = z.infer<typeof AnalyticsResultItem>;
 
+// --- Trend Definitions ---
+
+export const TrendResultItem = z.object({
+  date: z.string(), // YYYY-MM-DD
+  // Dynamic keys for projects/languages + 'date'
+  values: z.record(z.string(), z.number())
+});
+export type TrendResultItem = z.infer<typeof TrendResultItem>;
+
 // --- IPC Definitions ---
 
-export const IpcRequestType = z.enum(['emit_event', 'query_events', 'query_sessions', 'query_analytics', 'ping']);
+export const IpcRequestType = z.enum(['emit_event', 'query_events', 'query_sessions', 'query_analytics', 'query_trend', 'ping']);
 
 export const IpcRequestSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('emit_event'), event: TempoEventSchema }),
   z.object({ type: z.literal('query_events'), limit: z.number().optional().default(50) }),
-  z.object({ type: z.literal('query_sessions'), limit: z.number().optional().default(50) }),
-  z.object({ type: z.literal('query_analytics'), groupBy: AnalyticsGroupBy }),
+  z.object({ type: z.literal('query_sessions'), limit: z.number().optional().default(50), startTime: z.string().optional(), endTime: z.string().optional() }),
+  z.object({ type: z.literal('query_analytics'), groupBy: AnalyticsGroupBy, startTime: z.string().optional(), endTime: z.string().optional() }),
+  z.object({ type: z.literal('query_trend'), groupBy: AnalyticsGroupBy, days: z.number().optional().default(7) }),
   z.object({ type: z.literal('ping') }),
 ]);
 

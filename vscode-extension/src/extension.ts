@@ -4,6 +4,8 @@ import { TempoEvent } from '@tempo/contracts';
 
 let client: TempoClient;
 let outputChannel: vscode.OutputChannel;
+let lastActivityTime = 0;
+const ACTIVITY_THROTTLE_MS = 30000; // 30 seconds
 
 export function activate(context: vscode.ExtensionContext) {
     outputChannel = vscode.window.createOutputChannel('Tempo');
@@ -11,13 +13,15 @@ export function activate(context: vscode.ExtensionContext) {
 
     client = new TempoClient(outputChannel);
     context.subscriptions.push(outputChannel);
-    
+
     // Register event listeners
     context.subscriptions.push(
         vscode.window.onDidChangeActiveTextEditor(handleActiveEditorChange),
         vscode.workspace.onDidOpenTextDocument(handleFileOpen),
         vscode.workspace.onDidCloseTextDocument(handleFileClose),
-        vscode.workspace.onDidChangeTextDocument(handleFileEdit)
+        vscode.workspace.onDidChangeTextDocument(handleFileEdit),
+        vscode.window.onDidChangeTextEditorVisibleRanges(handleScroll),
+        vscode.window.onDidChangeTextEditorSelection(handleSelection)
     );
 
     // Initial check for active editor
@@ -42,9 +46,9 @@ function handleActiveEditorChange(editor: vscode.TextEditor | undefined) {
 
     const event: TempoEvent = {
         type: 'app_active', // Or should this be file_open implies active? 
-                            // Actually, app_active is for window focus. 
-                            // Switching tabs is effectively "App Active" context switch or just "File Open" (which implies active).
-                            // Let's use app_active with window title as "Filename - Project"
+        // Actually, app_active is for window focus. 
+        // Switching tabs is effectively "App Active" context switch or just "File Open" (which implies active).
+        // Let's use app_active with window title as "Filename - Project"
         timestamp: new Date().toISOString(),
         source: 'vscode',
         payload: {
@@ -59,7 +63,7 @@ function handleActiveEditorChange(editor: vscode.TextEditor | undefined) {
     // Let's emit a file_open event as well or instead?
     // Architecture says: "File X became active" -> This is `file_open` or specialized `file_focus`?
     // Contracts has `file_open`. Let's use that for now.
-    
+
     const fileEvent: TempoEvent = {
         type: 'file_open',
         timestamp: new Date().toISOString(),
@@ -75,7 +79,7 @@ function handleActiveEditorChange(editor: vscode.TextEditor | undefined) {
 
 function handleFileOpen(doc: vscode.TextDocument) {
     if (doc.uri.scheme !== 'file') return;
-    
+
     // We handle focus in onDidChangeActiveTextEditor. 
     // This event fires when a file is technically opened (loaded), which might not mean focused.
     // So we might ignore this or treat it as purely "loaded". 
@@ -108,6 +112,36 @@ function handleFileEdit(e: vscode.TextDocumentChangeEvent) {
         timestamp: new Date().toISOString(),
         source: 'vscode',
         payload: {
+            file_path: doc.fileName,
+            language: doc.languageId,
+            project_path: vscode.workspace.getWorkspaceFolder(doc.uri)?.uri.fsPath
+        }
+    };
+    client.emit(event);
+}
+
+function handleScroll(e: vscode.TextEditorVisibleRangesChangeEvent) {
+    if (e.textEditor.document.uri.scheme !== 'file') return;
+    throttleAndEmitActivity(e.textEditor.document, 'scroll');
+}
+
+function handleSelection(e: vscode.TextEditorSelectionChangeEvent) {
+    if (e.textEditor.document.uri.scheme !== 'file') return;
+    throttleAndEmitActivity(e.textEditor.document, 'cursor');
+}
+
+function throttleAndEmitActivity(doc: vscode.TextDocument, kind: 'scroll' | 'cursor') {
+    const now = Date.now();
+    if (now - lastActivityTime < ACTIVITY_THROTTLE_MS) return;
+
+    lastActivityTime = now;
+
+    const event: TempoEvent = {
+        type: 'user_activity',
+        timestamp: new Date().toISOString(),
+        source: 'vscode',
+        payload: {
+            kind,
             file_path: doc.fileName,
             language: doc.languageId,
             project_path: vscode.workspace.getWorkspaceFolder(doc.uri)?.uri.fsPath

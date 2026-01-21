@@ -112,11 +112,29 @@ export class TempoDatabase {
     stmt.run(...values);
   }
 
-  public getRecentSessions(limit: number): TempoSession[] {
-    const stmt = this.db.prepare(
-      'SELECT id, start_time, last_active_time, end_time, duration_seconds, status, context FROM sessions ORDER BY start_time DESC LIMIT ?'
-    );
-    const rows = stmt.all(limit) as any[];
+  public getRecentSessions(limit: number, startTime?: string, endTime?: string): TempoSession[] {
+    let query = 'SELECT id, start_time, last_active_time, end_time, duration_seconds, status, context FROM sessions';
+    const params: any[] = [];
+    const whereClauses: string[] = [];
+
+    if (startTime) {
+      whereClauses.push('start_time >= ?');
+      params.push(startTime);
+    }
+    if (endTime) {
+      whereClauses.push('start_time <= ?');
+      params.push(endTime);
+    }
+
+    if (whereClauses.length > 0) {
+      query += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    query += ' ORDER BY start_time DESC LIMIT ?';
+    params.push(limit);
+
+    const stmt = this.db.prepare(query);
+    const rows = stmt.all(...params) as any[];
 
     return rows.map((row) => ({
       id: row.id.toString(),
@@ -129,7 +147,7 @@ export class TempoDatabase {
     })) as TempoSession[];
   }
 
-  public getAnalytics(groupBy: string): any[] {
+  public getAnalytics(groupBy: string, startTime?: string, endTime?: string): any[] {
     let groupByClause = '';
     let selectKey = '';
 
@@ -167,13 +185,72 @@ export class TempoDatabase {
         SUM(duration_seconds) as total_duration_seconds, 
         COUNT(*) as session_count 
       FROM sessions 
+      FROM sessions 
       WHERE key IS NOT NULL
+      ${startTime ? `AND start_time >= '${startTime}'` : ''}
+      ${endTime ? `AND start_time <= '${endTime}'` : ''}
       GROUP BY ${groupByClause} 
       ORDER BY total_duration_seconds DESC
     `;
 
     const stmt = this.db.prepare(query);
     return stmt.all();
+  }
+
+  public getTrend(groupBy: string, days: number): any[] {
+    let groupByClause = '';
+    let selectKey = '';
+
+    switch (groupBy) {
+      case 'project':
+        selectKey = "json_extract(context, '$.project_path')";
+        groupByClause = "json_extract(context, '$.project_path')";
+        break;
+      case 'language':
+        selectKey = "json_extract(context, '$.language')";
+        groupByClause = "json_extract(context, '$.language')";
+        break;
+      case 'app':
+        selectKey = "json_extract(context, '$.app_name')";
+        groupByClause = "json_extract(context, '$.app_name')";
+        break;
+      default:
+        // Default to project
+        selectKey = "json_extract(context, '$.project_path')";
+        groupByClause = "json_extract(context, '$.project_path')";
+    }
+
+    const query = `
+      SELECT 
+        date(start_time) as date,
+        ${selectKey} as name,
+        SUM(duration_seconds) as duration
+      FROM sessions
+      WHERE date(start_time) >= date('now', '-${days} days')
+      AND name IS NOT NULL
+      GROUP BY date, name
+      ORDER BY date ASC
+    `;
+
+    const rows = this.db.prepare(query).all() as any[];
+
+    // Pivot the data suitable for Recharts { date: '2023-01-01', ProjectA: 100, ProjectB: 200 }
+    const result: Record<string, any> = {};
+
+    rows.forEach(row => {
+      if (!result[row.date]) {
+        result[row.date] = { date: row.date };
+      }
+      result[row.date][row.name] = row.duration;
+    });
+
+    return Object.values(result);
+  }
+
+  public getTrendAnalytics(groupBy: string, startTime?: string, endTime?: string): any[] {
+    // Re-implementing getAnalytics with dates if needed, or just relying on base implementation
+    // For now, we update the base getAnalytics to accept optional dates
+    return this.getAnalytics(groupBy, startTime, endTime);
   }
 
   public close() {

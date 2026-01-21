@@ -6,7 +6,7 @@ const IDLE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 export class SessionManager {
   private currentSession: TempoSession | null = null;
 
-  constructor(private db: TempoDatabase) {}
+  constructor(private db: TempoDatabase) { }
 
   public async processEvent(event: TempoEvent) {
     const eventTime = new Date(event.timestamp).getTime();
@@ -72,7 +72,7 @@ export class SessionManager {
       end_time: timestamp,
       status: 'completed'
     });
-    
+
     console.log(`Completed session: ${this.currentSession.id}. Duration: ${this.currentSession.duration_seconds}s`);
     this.currentSession = null;
   }
@@ -81,6 +81,11 @@ export class SessionManager {
     const context: SessionContext = {};
     if (event.type === 'app_active') {
       context.app_name = event.payload.app_name;
+    } else if (event.type === 'user_activity') {
+      context.file_path = event.payload.file_path;
+      context.project_path = event.payload.project_path;
+      context.language = event.payload.language;
+      context.app_name = 'Editor';
     } else if ('file_path' in event.payload) {
       context.file_path = event.payload.file_path;
       context.project_path = event.payload.project_path;
@@ -93,7 +98,7 @@ export class SessionManager {
   private isContextMatch(a: SessionContext, b: SessionContext): boolean {
     // If both have project_path, they must match
     if (a.project_path && b.project_path && a.project_path !== b.project_path) return false;
-    
+
     // If both have app_name, they must match
     if (a.app_name && b.app_name && a.app_name !== b.app_name) return false;
 
