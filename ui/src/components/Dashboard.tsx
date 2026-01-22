@@ -10,6 +10,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = () => {
     const [trendData, setTrendData] = React.useState<any[]>([]);
     const [activityTrendData, setActivityTrendData] = React.useState<any[]>([]);
+    const [workPatternData, setWorkPatternData] = React.useState<any[]>([]);
     const [todaySessions, setTodaySessions] = React.useState<TempoSession[]>([]);
     const [langData, setLangData] = React.useState<any[]>([]);
     const [totalDuration7Days, setTotalDuration7Days] = React.useState(0);
@@ -27,6 +28,9 @@ export const Dashboard: React.FC<DashboardProps> = () => {
 
                 const activityTrends = await window.tempo.request({ type: 'query_trend', groupBy: 'language', days: 7 });
                 if (activityTrends.success) setActivityTrendData(activityTrends.data);
+
+                const workPattern = await window.tempo.request({ type: 'query_work_pattern', days: 7 });
+                if (workPattern.success) setWorkPatternData(workPattern.data);
 
                 // 2. Calculate Totals (7 Days)
                 // We can aggregate from the trend data returned
@@ -194,6 +198,23 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                                 <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} />
                                 <Legend verticalAlign="bottom" height={36} />
                             </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Work Pattern (Reading vs Writing) */}
+                <div style={chartCardStyle}>
+                    <h3 style={chartTitleStyle}>Work Pattern (Reading vs Writing)</h3>
+                    <div style={{ height: '300px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={workPatternData}>
+                                <XAxis dataKey="date" fontSize={12} />
+                                <YAxis fontSize={12} tickFormatter={(val) => `${Math.floor(val / 60)}m`} />
+                                <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} labelStyle={{ color: '#333' }} />
+                                <Legend />
+                                <Bar dataKey="writing_seconds" name="Writing" stackId="a" fill="#FF8042" />
+                                <Bar dataKey="reading_seconds" name="Reading" stackId="a" fill="#00C49F" />
+                            </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>

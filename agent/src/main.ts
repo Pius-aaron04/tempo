@@ -150,6 +150,16 @@ async function handleMessage(socket: net.Socket, db: TempoDatabase, sessionManag
       return sendResponse(socket, { success: false, error: e.message });
     }
   }
+
+  if (req.type === 'query_work_pattern') {
+    try {
+      const results = db.getWorkPattern(req.days || 7);
+      return sendResponse(socket, { success: true, data: results });
+    } catch (e: any) {
+      console.error('Failed to query work pattern:', e);
+      return sendResponse(socket, { success: false, error: e.message });
+    }
+  }
 }
 
 function sendResponse(socket: net.Socket, response: IpcResponse) {

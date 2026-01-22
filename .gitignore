@@ -3,4 +3,4 @@ dist
 *.db
 .env
 *.log
-.tempo/
+.tempo/dist-electron

@@ -56,7 +56,13 @@ function createWindow() {
     else {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
     }
+    mainWindow.once('ready-to-show', () => {
+        mainWindow?.show();
+    });
+    mainWindow.on('closed', () => {
+    });
 }
+electron_1.app.disableHardwareAcceleration();
 electron_1.app.whenReady().then(createWindow);
 electron_1.app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {

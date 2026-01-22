@@ -101,9 +101,18 @@ export const TrendResultItem = z.object({
 });
 export type TrendResultItem = z.infer<typeof TrendResultItem>;
 
+// --- Work Pattern Definitions ---
+
+export const WorkPatternResultItem = z.object({
+  date: z.string(),
+  reading_seconds: z.number(),
+  writing_seconds: z.number(),
+});
+export type WorkPatternResultItem = z.infer<typeof WorkPatternResultItem>;
+
 // --- IPC Definitions ---
 
-export const IpcRequestType = z.enum(['emit_event', 'query_events', 'query_sessions', 'query_analytics', 'query_trend', 'ping']);
+export const IpcRequestType = z.enum(['emit_event', 'query_events', 'query_sessions', 'query_analytics', 'query_trend', 'query_work_pattern', 'ping']);
 
 export const IpcRequestSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('emit_event'), event: TempoEventSchema }),
@@ -111,6 +120,7 @@ export const IpcRequestSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('query_sessions'), limit: z.number().optional().default(50), startTime: z.string().optional(), endTime: z.string().optional() }),
   z.object({ type: z.literal('query_analytics'), groupBy: AnalyticsGroupBy, startTime: z.string().optional(), endTime: z.string().optional() }),
   z.object({ type: z.literal('query_trend'), groupBy: AnalyticsGroupBy, days: z.number().optional().default(7) }),
+  z.object({ type: z.literal('query_work_pattern'), days: z.number().optional().default(7) }),
   z.object({ type: z.literal('ping') }),
 ]);
 

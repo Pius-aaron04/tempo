@@ -253,6 +253,98 @@ export class TempoDatabase {
     return this.getAnalytics(groupBy, startTime, endTime);
   }
 
+  public getWorkPattern(days: number): any[] {
+    // Logic: 
+    // 1. Get all events for last N days.
+    // 2. Group into buckets (e.g., 5 min).
+    // 3. Score bucket: Has Edit -> Writing. Else -> Reading.
+    // 4. Summarize by Day.
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString();
+
+    const stmt = this.db.prepare(`
+      SELECT type, timestamp 
+      FROM events 
+      WHERE timestamp >= ? 
+      ORDER BY timestamp ASC
+    `);
+
+    const events = stmt.all(cutoffStr) as { type: string; timestamp: string }[];
+    const BUCKET_MS = 5 * 60 * 1000; // 5 minutes
+
+    const dailyStats: Record<string, { reading: number; writing: number }> = {};
+
+    if (events.length === 0) return [];
+
+    let currentBucketStart = 0;
+    let hasEdit = false;
+    let hasActivity = false;
+
+    // Helper to commit bucket
+    const commitBucket = () => {
+      if (currentBucketStart === 0) return;
+
+      const dateStr = new Date(currentBucketStart).toISOString().split('T')[0];
+      if (!dailyStats[dateStr]) dailyStats[dateStr] = { reading: 0, writing: 0 };
+
+      // Duration of a bucket is active time. 
+      // We can assume if activity happened, the user was active for some portion.
+      // Simple heuristic: 5 mins if full bucket? 
+      // Let's count it as 5 mins (300s) if active.
+      const seconds = 300;
+
+      if (hasEdit) {
+        dailyStats[dateStr].writing += seconds;
+      } else if (hasActivity) {
+        dailyStats[dateStr].reading += seconds;
+      }
+      // If neither, idle.
+    };
+
+    events.forEach(e => {
+      const time = new Date(e.timestamp).getTime();
+
+      // Align time to bucket start
+      const bucketStart = Math.floor(time / BUCKET_MS) * BUCKET_MS;
+
+      if (bucketStart !== currentBucketStart) {
+        commitBucket();
+        currentBucketStart = bucketStart;
+        hasEdit = false;
+        hasActivity = false;
+      }
+
+      if (e.type === 'file_edit') {
+        hasEdit = true;
+        hasActivity = true;
+      } else if (['app_active', 'file_open', 'user_activity', 'scroll', 'cursor'].includes(e.type)) {
+        hasActivity = true;
+      }
+    });
+
+    // Commit last bucket
+    commitBucket();
+
+    // Fill in dates
+    const result: any[] = [];
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const stats = dailyStats[dateStr] || { reading: 0, writing: 0 };
+      result.push({
+        date: dateStr,
+        reading_seconds: stats.reading,
+        writing_seconds: stats.writing
+      });
+    }
+
+    return result;
+  }
+
   public close() {
     this.db.close();
   }
