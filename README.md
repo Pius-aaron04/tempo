@@ -19,7 +19,7 @@ This project is a monorepo managed with `pnpm`:
 - `ui`: React + Electron dashboard.
 - `vscode-extension`: Data collector for VS Code.
 - `packages/contracts`: Shared TypeScript types and schemas.
-- `packages/cli`: (Coming soon) Command-line interface.
+- `packages/cli`: Terminal-based analytics tool.
 
 ## Getting Started
 
@@ -47,6 +47,29 @@ pnpm dev
 ```bash
 cd ui
 pnpm electron:dev
+```
+
+### Using the CLI
+
+The CLI tool allows you to view analytics from your terminal:
+
+```bash
+cd packages/cli
+
+# Install dependencies (first time only)
+pnpm install
+
+# View recent sessions
+pnpm dev stats
+
+# View analytics (grouped by project)
+pnpm dev analytics
+
+# View analytics options
+pnpm dev analytics --help
+# Examples: 
+#   pnpm dev analytics --group-by language
+#   pnpm dev analytics --group-by hour
 ```
 
 ### Developing VS Code Extension
