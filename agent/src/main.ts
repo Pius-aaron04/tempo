@@ -14,7 +14,6 @@ async function main() {
   const sessionManager = new SessionManager(db);
 
   const server = net.createServer((socket) => {
-    console.log('Client connected');
 
     socket.on('data', async (data) => {
       try {

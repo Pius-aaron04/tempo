@@ -84,7 +84,17 @@ export const Dashboard: React.FC<DashboardProps> = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#a4de6c'];
+
+    // Deterministic color generator for consistency
+    const getColor = (key: string) => {
+        let hash = 0;
+        for (let i = 0; i < key.length; i++) {
+            hash = key.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const index = Math.abs(hash) % COLORS.length;
+        return COLORS[index];
+    };
 
     // Collect all unique keys for stacked bars
     const getKeys = (data: any[]) => {
@@ -158,9 +168,9 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                     </div>
                 </div>
 
-                {/* Activity Trend */}
+                {/* Activity Trend -> Time by language */}
                 <div style={chartCardStyle}>
-                    <h3 style={chartTitleStyle}>Time by Activity (Last 7 Days)</h3>
+                    <h3 style={chartTitleStyle}>Time by language (Last 7 Days)</h3>
                     <div style={{ height: '300px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={activityTrendData}>
@@ -168,8 +178,8 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                                 <YAxis fontSize={12} tickFormatter={(val) => `${Math.floor(val / 60)}m`} />
                                 <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} labelStyle={{ color: '#333' }} />
                                 <Legend />
-                                {activityKeys.map((key, index) => (
-                                    <Bar key={key} dataKey={key} stackId="a" fill={COLORS[(index + 2) % COLORS.length]} name={formatName(key)} />
+                                {activityKeys.map((key) => (
+                                    <Bar key={key} dataKey={key} stackId="a" fill={getColor(key)} name={formatName(key)} />
                                 ))}
                             </BarChart>
                         </ResponsiveContainer>
@@ -192,7 +202,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                                     dataKey="value"
                                 >
                                     {langData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
                                     ))}
                                 </Pie>
                                 <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} />

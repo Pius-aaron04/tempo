@@ -42,6 +42,8 @@ function App() {
     }
   };
 
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   useEffect(() => {
     fetchSessions();
     const interval = setInterval(fetchSessions, 5000); // Poll every 5s
@@ -51,12 +53,23 @@ function App() {
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'Inter, system-ui, sans-serif', background: '#f8f9fa' }}>
       {/* Sidebar */}
-      <div style={{ width: '250px', background: 'white', borderRight: '1px solid #eee', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '40px', paddingLeft: '10px' }}>
-          <div style={{ background: '#333', color: 'white', padding: '8px', borderRadius: '8px' }}>
+      <div style={{
+        width: isCollapsed ? '70px' : '250px',
+        background: 'white',
+        borderRight: '1px solid #eee',
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'width 0.3s ease'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '40px', paddingLeft: isCollapsed ? '0' : '10px', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
+          <div
+            style={{ background: '#333', color: 'white', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}
+            onClick={() => setIsCollapsed(!isCollapsed)}
+          >
             <Activity size={20} />
           </div>
-          <h1 style={{ fontSize: '1.2em', fontWeight: 'bold', margin: 0 }}>Tempo</h1>
+          {!isCollapsed && <h1 style={{ fontSize: '1.2em', fontWeight: 'bold', margin: 0 }}>Tempo</h1>}
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -65,12 +78,14 @@ function App() {
             label="Dashboard"
             active={activeTab === 'dashboard'}
             onClick={() => setActiveTab('dashboard')}
+            collapsed={isCollapsed}
           />
           <NavItem
             icon={<List size={20} />}
             label="Sessions"
             active={activeTab === 'sessions'}
             onClick={() => setActiveTab('sessions')}
+            collapsed={isCollapsed}
           />
         </nav>
 
@@ -80,6 +95,7 @@ function App() {
             label="Settings"
             active={false}
             onClick={() => { }}
+            collapsed={isCollapsed}
           />
         </div>
       </div>
@@ -114,9 +130,10 @@ function App() {
   );
 }
 
-const NavItem = ({ icon, label, active, onClick }: any) => (
+const NavItem = ({ icon, label, active, onClick, collapsed }: any) => (
   <div
     onClick={onClick}
+    title={collapsed ? label : ''}
     style={{
       display: 'flex',
       alignItems: 'center',
@@ -127,11 +144,12 @@ const NavItem = ({ icon, label, active, onClick }: any) => (
       color: active ? '#111' : '#666',
       background: active ? '#f0f0f0' : 'transparent',
       fontWeight: active ? 600 : 400,
-      transition: 'all 0.2s'
+      transition: 'all 0.2s',
+      justifyContent: collapsed ? 'center' : 'flex-start'
     }}
   >
     {icon}
-    <span>{label}</span>
+    {!collapsed && <span>{label}</span>}
   </div>
 );
 
