@@ -256,9 +256,10 @@ export class TempoDatabase {
   public getWorkPattern(days: number): any[] {
     // Logic: 
     // 1. Get all events for last N days.
-    // 2. Group into buckets (e.g., 5 min).
-    // 3. Score bucket: Has Edit -> Writing. Else -> Reading.
-    // 4. Summarize by Day.
+    // 2. Sort by timestamp.
+    // 3. Iterate and sum durations between events (gaps).
+    // 4. If gap > IDLE_THRESHOLD (2 mins), ignore it (new session start).
+    // 5. If event is 'file_edit', classify gap as writing, else reading.
 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
@@ -272,77 +273,60 @@ export class TempoDatabase {
     `);
 
     const events = stmt.all(cutoffStr) as { type: string; timestamp: string }[];
-    const BUCKET_MS = 5 * 60 * 1000; // 5 minutes
+    const IDLE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes matching SessionManager
 
     const dailyStats: Record<string, { reading: number; writing: number }> = {};
 
     if (events.length === 0) return [];
 
-    let currentBucketStart = 0;
-    let hasEdit = false;
-    let hasActivity = false;
+    let prevTime = new Date(events[0].timestamp).getTime();
 
-    // Helper to commit bucket
-    const commitBucket = () => {
-      if (currentBucketStart === 0) return;
-
-      const dateStr = new Date(currentBucketStart).toISOString().split('T')[0];
-      if (!dailyStats[dateStr]) dailyStats[dateStr] = { reading: 0, writing: 0 };
-
-      // Duration of a bucket is active time. 
-      // We can assume if activity happened, the user was active for some portion.
-      // Simple heuristic: 5 mins if full bucket? 
-      // Let's count it as 5 mins (300s) if active.
-      const seconds = 300;
-
-      if (hasEdit) {
-        dailyStats[dateStr].writing += seconds;
-      } else if (hasActivity) {
-        dailyStats[dateStr].reading += seconds;
-      }
-      // If neither, idle.
-    };
-
-    events.forEach(e => {
-      const time = new Date(e.timestamp).getTime();
-
-      // Align time to bucket start
-      const bucketStart = Math.floor(time / BUCKET_MS) * BUCKET_MS;
-
-      if (bucketStart !== currentBucketStart) {
-        commitBucket();
-        currentBucketStart = bucketStart;
-        hasEdit = false;
-        hasActivity = false;
-      }
-
-      if (e.type === 'file_edit') {
-        hasEdit = true;
-        hasActivity = true;
-      } else if (['app_active', 'file_open', 'user_activity', 'scroll', 'cursor'].includes(e.type)) {
-        hasActivity = true;
-      }
-    });
-
-    // Commit last bucket
-    commitBucket();
-
-    // Fill in dates
-    const result: any[] = [];
+    // Initialize dates in range to ensure we return 0s for empty days
     const now = new Date();
-    for (let i = days - 1; i >= 0; i--) {
+    for (let i = 0; i < days; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
-      const stats = dailyStats[dateStr] || { reading: 0, writing: 0 };
-      result.push({
-        date: dateStr,
-        reading_seconds: stats.reading,
-        writing_seconds: stats.writing
-      });
+      dailyStats[dateStr] = { reading: 0, writing: 0 };
     }
 
-    return result;
+    for (let i = 1; i < events.length; i++) {
+      const e = events[i];
+      const currTime = new Date(e.timestamp).getTime();
+      const gap = currTime - prevTime;
+      const dateStr = e.timestamp.split('T')[0];
+
+      // Ensure we handle date boundaries gracefully (assign to the day of the event)
+      if (!dailyStats[dateStr]) dailyStats[dateStr] = { reading: 0, writing: 0 };
+
+      if (gap <= IDLE_THRESHOLD_MS) {
+        const seconds = gap / 1000;
+        if (e.type === 'file_edit') {
+          dailyStats[dateStr].writing += seconds;
+        } else {
+          dailyStats[dateStr].reading += seconds;
+        }
+      }
+      // If gap > threshold, we treat it as idle time (0 duration added)
+
+      prevTime = currTime;
+    }
+
+    // Convert to array
+    const result: any[] = [];
+    // Key-value to sorted array
+    Object.entries(dailyStats).forEach(([date, stats]) => {
+      // filter out dates older than request if any
+      if (date >= cutoffStr.split('T')[0]) {
+        result.push({
+          date: date,
+          reading_seconds: Math.round(stats.reading),
+          writing_seconds: Math.round(stats.writing)
+        });
+      }
+    });
+
+    return result.sort((a, b) => a.date.localeCompare(b.date));
   }
 
   public close() {
