@@ -117,6 +117,38 @@ export const Dashboard: React.FC<DashboardProps> = () => {
     // Extract basename for project display
     const formatName = (name: string) => name.split(/[\\/]/).pop() || name;
 
+    // Custom Tooltip Component
+    const CustomTooltip = ({ active, payload, label }: any) => {
+        if (active && payload && payload.length) {
+            // Calculate total for this hover state
+            const total = payload.reduce((sum: number, entry: any) => sum + (entry.value || 0), 0);
+
+            return (
+                <div style={{
+                    background: 'rgba(255, 255, 255, 0.96)',
+                    border: '1px solid #ccc',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+                    fontSize: '0.9em'
+                }}>
+                    <p style={{ margin: '0 0 5px', fontWeight: 'bold', color: '#333' }}>{label}</p>
+                    <p style={{ margin: '0 0 8px', fontWeight: '600', color: '#111', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>
+                        Total: {formatTime(total)}
+                    </p>
+                    {payload.map((entry: any, index: number) => (
+                        <p key={index} style={{ margin: '2px 0', color: entry.color, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: entry.color }}></span>
+                            <span>{entry.name}:</span>
+                            <span style={{ fontWeight: 500 }}>{formatTime(entry.value)}</span>
+                        </p>
+                    ))}
+                </div>
+            );
+        }
+        return null;
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Summary Cards (7 Days) */}
@@ -158,7 +190,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                             <BarChart data={trendData}>
                                 <XAxis dataKey="date" fontSize={12} />
                                 <YAxis fontSize={12} tickFormatter={(val) => `${Math.floor(val / 60)}m`} />
-                                <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} labelStyle={{ color: '#333' }} />
+                                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                                 <Legend />
                                 {projectKeys.map((key, index) => (
                                     <Bar key={key} dataKey={key} stackId="a" fill={COLORS[index % COLORS.length]} name={formatName(key)} />
@@ -176,7 +208,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                             <BarChart data={activityTrendData}>
                                 <XAxis dataKey="date" fontSize={12} />
                                 <YAxis fontSize={12} tickFormatter={(val) => `${Math.floor(val / 60)}m`} />
-                                <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} labelStyle={{ color: '#333' }} />
+                                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                                 <Legend />
                                 {activityKeys.map((key) => (
                                     <Bar key={key} dataKey={key} stackId="a" fill={getColor(key)} name={formatName(key)} />
@@ -220,7 +252,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                             <BarChart data={workPatternData}>
                                 <XAxis dataKey="date" fontSize={12} />
                                 <YAxis fontSize={12} tickFormatter={(val) => `${Math.floor(val / 60)}m`} />
-                                <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} labelStyle={{ color: '#333' }} />
+                                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                                 <Legend />
                                 <Bar dataKey="writing_seconds" name="Writing" stackId="a" fill="#FF8042" />
                                 <Bar dataKey="reading_seconds" name="Reading" stackId="a" fill="#00C49F" />
