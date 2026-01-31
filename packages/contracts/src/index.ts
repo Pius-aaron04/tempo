@@ -112,7 +112,7 @@ export type WorkPatternResultItem = z.infer<typeof WorkPatternResultItem>;
 
 // --- IPC Definitions ---
 
-export const IpcRequestType = z.enum(['emit_event', 'query_events', 'query_sessions', 'query_analytics', 'query_trend', 'query_work_pattern', 'ping']);
+export const IpcRequestType = z.enum(['emit_event', 'query_events', 'query_sessions', 'query_analytics', 'query_trend', 'query_work_pattern', 'query_project_files', 'ping']);
 
 export const IpcRequestSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('emit_event'), event: TempoEventSchema }),
@@ -121,6 +121,7 @@ export const IpcRequestSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('query_analytics'), groupBy: AnalyticsGroupBy, startTime: z.string().optional(), endTime: z.string().optional() }),
   z.object({ type: z.literal('query_trend'), groupBy: AnalyticsGroupBy, days: z.number().optional().default(7) }),
   z.object({ type: z.literal('query_work_pattern'), days: z.number().optional().default(7) }),
+  z.object({ type: z.literal('query_project_files'), projectPath: z.string(), days: z.number().optional().default(7) }),
   z.object({ type: z.literal('ping') }),
 ]);
 

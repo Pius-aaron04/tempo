@@ -142,7 +142,7 @@ async function handleMessage(socket: net.Socket, db: TempoDatabase, sessionManag
 
   if (req.type === 'query_trend') {
     try {
-      const results = db.getTrend(req.groupBy, req.days || 7);
+      const results = db.getTrend(req.groupBy, req.days !== undefined ? req.days : 7);
       return sendResponse(socket, { success: true, data: results });
     } catch (e: any) {
       console.error('Failed to query trends:', e);
@@ -152,10 +152,20 @@ async function handleMessage(socket: net.Socket, db: TempoDatabase, sessionManag
 
   if (req.type === 'query_work_pattern') {
     try {
-      const results = db.getWorkPattern(req.days || 7);
+      const results = db.getWorkPattern(req.days !== undefined ? req.days : 7);
       return sendResponse(socket, { success: true, data: results });
     } catch (e: any) {
       console.error('Failed to query work pattern:', e);
+      return sendResponse(socket, { success: false, error: e.message });
+    }
+  }
+
+  if (req.type === 'query_project_files') {
+    try {
+      const results = db.getProjectFiles(req.projectPath, req.days !== undefined ? req.days : 7);
+      return sendResponse(socket, { success: true, data: results });
+    } catch (e: any) {
+      console.error('Failed to query project files:', e);
       return sendResponse(socket, { success: false, error: e.message });
     }
   }

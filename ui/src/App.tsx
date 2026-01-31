@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { TempoSession } from '@tempo/contracts';
 import { Dashboard } from './components/Dashboard';
 import { SessionList } from './components/SessionList';
-import { LayoutDashboard, List, Activity, Settings } from 'lucide-react';
+import { ProjectDetails } from './components/ProjectDetails';
+import { ProjectList } from './components/ProjectList';
+import { Layout, BarChart2, Folder, Settings, ChevronLeft, ChevronRight, Activity, LayoutDashboard, List } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -13,7 +15,9 @@ declare global {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'sessions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'sessions' | 'projects'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'project_details'>('dashboard');
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [sessions, setSessions] = useState<TempoSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +47,16 @@ function App() {
   };
 
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const handleProjectClick = (path: string) => {
+    setSelectedProject(path);
+    setView('project_details');
+  };
+
+  const handleBack = () => {
+    setView('dashboard');
+    setSelectedProject(null);
+  };
 
   useEffect(() => {
     fetchSessions();
@@ -77,14 +91,21 @@ function App() {
             icon={<LayoutDashboard size={20} />}
             label="Dashboard"
             active={activeTab === 'dashboard'}
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => { setActiveTab('dashboard'); setView('dashboard'); }}
             collapsed={isCollapsed}
           />
           <NavItem
             icon={<List size={20} />}
             label="Sessions"
             active={activeTab === 'sessions'}
-            onClick={() => setActiveTab('sessions')}
+            onClick={() => { setActiveTab('sessions'); setView('dashboard'); }}
+            collapsed={isCollapsed}
+          />
+          <NavItem
+            icon={<Folder size={20} />}
+            label="Projects"
+            active={activeTab === 'projects'}
+            onClick={() => { setActiveTab('projects'); setView('dashboard'); }}
             collapsed={isCollapsed}
           />
         </nav>
@@ -104,10 +125,10 @@ function App() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '40px' }}>
         <header style={{ marginBottom: '30px' }}>
           <h2 style={{ fontSize: '1.8em', fontWeight: 'bold', color: '#111', margin: 0 }}>
-            {activeTab === 'dashboard' ? 'Dashboard' : 'Recent Sessions'}
+            {view === 'project_details' ? 'Project Details' : (activeTab === 'dashboard' ? 'Dashboard' : 'Recent Sessions')}
           </h2>
           <p style={{ color: '#666', marginTop: '5px' }}>
-            {activeTab === 'dashboard' ? 'Overview of your activity' : 'History of your coding sessions'}
+            {view === 'project_details' ? 'File-level activity analysis' : (activeTab === 'dashboard' ? 'Overview of your activity' : 'History of your coding sessions')}
           </p>
         </header>
 
@@ -121,8 +142,15 @@ function App() {
           <div>Loading...</div>
         ) : (
           <>
-            {activeTab === 'dashboard' && <Dashboard sessions={sessions} />}
-            {activeTab === 'sessions' && <SessionList sessions={sessions} />}
+            {view === 'project_details' && selectedProject ? (
+              <ProjectDetails projectPath={selectedProject} onBack={handleBack} />
+            ) : (
+              <>
+                {activeTab === 'dashboard' && <Dashboard sessions={sessions} onProjectClick={handleProjectClick} />}
+                {activeTab === 'sessions' && <SessionList sessions={sessions} />}
+                {activeTab === 'projects' && <ProjectList onProjectClick={handleProjectClick} />}
+              </>
+            )}
           </>
         )}
       </div>

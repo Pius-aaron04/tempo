@@ -185,7 +185,6 @@ export class TempoDatabase {
         SUM(duration_seconds) as total_duration_seconds, 
         COUNT(*) as session_count 
       FROM sessions 
-      FROM sessions 
       WHERE key IS NOT NULL
       ${startTime ? `AND start_time >= '${startTime}'` : ''}
       ${endTime ? `AND start_time <= '${endTime}'` : ''}
@@ -222,13 +221,13 @@ export class TempoDatabase {
 
     const query = `
       SELECT 
-        date(start_time) as date,
+        ${days === 0 ? "strftime('%H:00', start_time, 'localtime') as date" : "date(start_time) as date"},
         ${selectKey} as name,
         SUM(duration_seconds) as duration
       FROM sessions
-      WHERE date(start_time) >= date('now', '-${days} days')
+      WHERE ${days === -1 ? '1=1' : (days === 0 ? "date(start_time, 'localtime') = date('now', 'localtime')" : `date(start_time) >= date('now', '-${days} days')`)}
       AND name IS NOT NULL
-      GROUP BY date, name
+      ${days === 0 ? "GROUP BY strftime('%H:00', start_time, 'localtime'), name" : "GROUP BY date, name"}
       ORDER BY date ASC
     `;
 
@@ -268,11 +267,11 @@ export class TempoDatabase {
     const stmt = this.db.prepare(`
       SELECT type, timestamp 
       FROM events 
-      WHERE timestamp >= ? 
+      ${days === -1 ? '' : (days === 0 ? "WHERE date(timestamp, 'localtime') = date('now', 'localtime')" : 'WHERE timestamp >= ?')}
       ORDER BY timestamp ASC
     `);
 
-    const events = stmt.all(cutoffStr) as { type: string; timestamp: string }[];
+    const events = (days === -1 || days === 0 ? stmt.all() : stmt.all(cutoffStr)) as { type: string; timestamp: string }[];
     const IDLE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes matching SessionManager
 
     const dailyStats: Record<string, { reading: number; writing: number }> = {};
@@ -282,11 +281,15 @@ export class TempoDatabase {
     let prevTime = new Date(events[0].timestamp).getTime();
 
     // Initialize dates in range to ensure we return 0s for empty days
+    // For All Time, we can just use the range from the first event to now
     const now = new Date();
-    for (let i = 0; i < days; i++) {
+    const effectiveDays = days === -1 ? Math.ceil((now.getTime() - new Date(events[0].timestamp).getTime()) / (1000 * 3600 * 24)) : (days === 0 ? 1 : days);
+
+    for (let i = 0; i < effectiveDays; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = d.toISOString().split('T')[0]; // Usage for dailyStats key. For 'Today' (days=0), we might need hourly stats but getWorkPattern returns daily summary. 
+      // Actually, for 'Today', getWorkPattern just returns one item: Today.
       dailyStats[dateStr] = { reading: 0, writing: 0 };
     }
 
@@ -301,6 +304,8 @@ export class TempoDatabase {
 
       if (gap <= IDLE_THRESHOLD_MS) {
         const seconds = gap / 1000;
+        // For 'Today' (days=0), events matches today. dateStr will be today.
+        // We accumulate into that day.
         if (e.type === 'file_edit') {
           dailyStats[dateStr].writing += seconds;
         } else {
@@ -316,8 +321,9 @@ export class TempoDatabase {
     const result: any[] = [];
     // Key-value to sorted array
     Object.entries(dailyStats).forEach(([date, stats]) => {
-      // filter out dates older than request if any
-      if (date >= cutoffStr.split('T')[0]) {
+      // filter out dates older than request if any (only if not All Time)
+      // filter out dates older than request if any (only if not All Time)
+      if (days === -1 || (days === 0 ? date === now.toISOString().split('T')[0] : date >= cutoffStr.split('T')[0])) {
         result.push({
           date: date,
           reading_seconds: Math.round(stats.reading),
@@ -327,6 +333,30 @@ export class TempoDatabase {
     });
 
     return result.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  public getProjectFiles(projectPath: string, days: number): any[] {
+    const query = `
+      SELECT 
+        json_extract(context, '$.file_path') as file_path,
+        SUM(duration_seconds) as duration,
+        MAX(last_active_time) as last_active
+      FROM sessions
+      WHERE json_extract(context, '$.project_path') = ?
+      ${days === -1 ? '' : (days === 0 ? "AND date(start_time, 'localtime') = date('now', 'localtime')" : `AND date(start_time) >= date('now', '-${days} days')`)}
+      AND file_path IS NOT NULL
+      GROUP BY file_path
+      ORDER BY duration DESC
+    `;
+
+    const stmt = this.db.prepare(query);
+    const rows = stmt.all(projectPath) as any[];
+
+    return rows.map(row => ({
+      file_path: row.file_path,
+      duration_seconds: row.duration,
+      last_active: row.last_active
+    }));
   }
 
   public close() {
