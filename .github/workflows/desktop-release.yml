@@ -1,0 +1,82 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'pnpm'
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build Contracts
+        run: pnpm --filter @tempo/contracts build
+
+      - name: Build Agent
+        run: |
+          pnpm --filter @tempo/agent build
+          pnpm --filter @tempo/agent package --out-path bin
+
+      - name: Build & Release Desktop
+        run: pnpm --filter @tempo/ui dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tempo-Linux-AppImage
+          path: ui/dist/*.AppImage
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'pnpm'
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build Contracts
+        run: pnpm --filter @tempo/contracts build
+
+      - name: Build Agent (Windows)
+        run: |
+          pnpm --filter @tempo/agent build
+          pnpm --filter @tempo/agent package --out-path bin --targets node18-win-x64
+          # Rename for consistency if needed, but pkg usually outputs tempo-agent.exe
+
+      - name: Build & Release Desktop (Windows)
+        run: pnpm --filter @tempo/ui dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tempo-Windows-Setup
+          path: ui/dist/*.exe

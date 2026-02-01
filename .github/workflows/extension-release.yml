@@ -1,0 +1,43 @@
+name: Extension Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'pnpm'
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build Contracts
+        run: pnpm --filter @tempo/contracts build
+
+      - name: Install vsce
+        run: npm install -g @vscode/vsce
+
+      - name: Package Extension
+        run: |
+          cd vscode-extension
+          vsce package
+        # vsce publish -p ${{ secrets.VSCE_PAT }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tempo-Extension-VSIX
+          path: vscode-extension/*.vsix
