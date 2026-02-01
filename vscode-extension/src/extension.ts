@@ -11,6 +11,7 @@ export function activate(context: vscode.ExtensionContext) {
     outputChannel = vscode.window.createOutputChannel('Tempo');
     outputChannel.appendLine('Tempo extension activating...');
 
+
     client = new TempoClient(outputChannel);
     context.subscriptions.push(outputChannel);
 
@@ -50,9 +51,9 @@ function handleActiveEditorChange(editor: vscode.TextEditor | undefined) {
         // Switching tabs is effectively "App Active" context switch or just "File Open" (which implies active).
         // Let's use app_active with window title as "Filename - Project"
         timestamp: new Date().toISOString(),
-        source: 'vscode',
+        source: vscode.env.appName,
         payload: {
-            app_name: 'VS Code',
+            app_name: vscode.env.appName,
             window_title: `${doc.fileName} - Tempo` // Approximate
         }
     };
@@ -67,7 +68,7 @@ function handleActiveEditorChange(editor: vscode.TextEditor | undefined) {
     const fileEvent: TempoEvent = {
         type: 'file_open',
         timestamp: new Date().toISOString(),
-        source: 'vscode',
+        source: vscode.env.appName,
         payload: {
             file_path: doc.fileName,
             language: doc.languageId,
@@ -92,7 +93,7 @@ function handleFileClose(doc: vscode.TextDocument) {
     const event: TempoEvent = {
         type: 'file_close',
         timestamp: new Date().toISOString(),
-        source: 'vscode',
+        source: vscode.env.appName,
         payload: {
             file_path: doc.fileName,
             language: doc.languageId,
@@ -110,7 +111,7 @@ function handleFileEdit(e: vscode.TextDocumentChangeEvent) {
     const event: TempoEvent = {
         type: 'file_edit',
         timestamp: new Date().toISOString(),
-        source: 'vscode',
+        source: vscode.env.appName,
         payload: {
             file_path: doc.fileName,
             language: doc.languageId,
@@ -139,7 +140,7 @@ function throttleAndEmitActivity(doc: vscode.TextDocument, kind: 'scroll' | 'cur
     const event: TempoEvent = {
         type: 'user_activity',
         timestamp: new Date().toISOString(),
-        source: 'vscode',
+        source: vscode.env.appName,
         payload: {
             kind,
             file_path: doc.fileName,

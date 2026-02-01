@@ -82,7 +82,7 @@ export type TempoSession = z.infer<typeof SessionSchema>;
 
 // --- Analytics Definitions ---
 
-export const AnalyticsGroupBy = z.enum(['hour', 'day', 'month', 'project', 'language']);
+export const AnalyticsGroupBy = z.enum(['hour', 'day', 'month', 'project', 'language', 'app']);
 export type AnalyticsGroupBy = z.infer<typeof AnalyticsGroupBy>;
 
 export const AnalyticsResultItem = z.object({
