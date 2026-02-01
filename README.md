@@ -6,8 +6,9 @@ Tempo is a local-first developer activity tracker designed to help you understan
 
 Tempo operates on a local server-client architecture:
 - **Agent**: A local Node.js process that stores data in a SQLite database.
+- **UI**: A desktop dashboard (Electron + React) for viewing usage stats.
 - **Collector**: VS Code extension that captures editor events.
-- **UI**: A desktop dashboard for viewing usage stats.
+- **CLI**: Terminal-based analytics tool.
 
 All data remains on your machine in `~/.tempo`.
 
@@ -24,55 +25,76 @@ This project is a monorepo managed with `pnpm`:
 ## Getting Started
 
 ### Prerequisites
-- Node.js > 18
-- pnpm
+
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [pnpm](https://pnpm.io/) (`npm install -g pnpm`)
 
 ### Installation
 
-```bash
-pnpm install
-```
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd tempo
+   ```
 
-### Running the Agent
+2. Install dependencies for all packages:
+   ```bash
+   pnpm install
+   ```
 
-You can start the agent in development mode:
+3. Build shared packages:
+   ```bash
+   pnpm --filter @tempo/contracts build
+   ```
+
+## Development Guide
+
+### 1. Agent (Backend)
+
+The agent must be running for the UI and Extension to function correctly.
 
 ```bash
 cd agent
 pnpm dev
+# The agent runs on port 3000 (default) or connects via IPC/Socket as configured.
 ```
 
-### Running the UI
+### 2. UI (Dashboard)
+
+The UI is an Electron application.
 
 ```bash
 cd ui
 pnpm electron:dev
+# This will launch the Electron window and a local Vite server.
 ```
 
-### Using the CLI
+### 3. VS Code Extension (Collector)
 
-The CLI tool allows you to view analytics from your terminal:
+To test the extension, you need to run it within the VS Code Extension Host.
+
+1. Open the `vscode-extension` directory in VS Code.
+2. Press `F5` (or go to **Run and Debug** > **Run Extension**).
+3. A new "Extension Development Host" window will open.
+4. Saving a file in the Host window should send events to the running Agent.
+
+### 4. CLI Tool
+
+Analyze your data directly from the terminal.
 
 ```bash
 cd packages/cli
 
-# Install dependencies (first time only)
-pnpm install
+# Build the CLI
+pnpm build
 
-# View recent sessions
-pnpm dev stats
-
-# View analytics (grouped by project)
-pnpm dev analytics
-
-# View analytics options
-pnpm dev analytics --help
-# Examples: 
-#   pnpm dev analytics --group-by language
-#   pnpm dev analytics --group-by hour
+# Run commands
+node dist/index.js stats
+node dist/index.js analytics --group-by language
 ```
 
-### Developing VS Code Extension
+## Troubleshooting
 
-1. Open `vscode-extension` folder in VS Code.
-2. Press F5 to launch a new Extension Host window.
+- **Agent Connection**: Ensure the `agent` is running before starting the UI or Extension.
+- **Database**: Data is stored in `~/.tempo/tempo.db`. You can inspect this file with any SQLite viewer.
+- **Dependencies**: If you encounter issues, try running `pnpm install` in the root directory again to ensure workspaces are linked correctly.
