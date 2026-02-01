@@ -187,7 +187,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                 </div>
             </div>
 
-            {/* ... Summary Cards ... */}
+            {/* Summary Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                <div style={cardStyle}>
+                    <div style={iconContainerStyle}><Clock size={24} color="#0088FE" /></div>
+                    <div>
+                        <div style={labelStyle}>Total Time</div>
+                        <div style={valueStyle}>{formatTime(totalDuration)}</div>
+                    </div>
+                </div>
+                <div style={cardStyle}>
+                    <div style={iconContainerStyle}><Code size={24} color="#00C49F" /></div>
+                    <div>
+                        <div style={labelStyle}>Top Language</div>
+                        <div style={valueStyle}>{formatName(topLang.name)}</div>
+                        <div style={{ fontSize: '0.8em', color: '#999' }}>{formatTime(topLang.value)}</div>
+                    </div>
+                </div>
+                <div style={cardStyle}>
+                    <div style={iconContainerStyle}><Zap size={24} color="#FFBB28" /></div>
+                    <div>
+                        <div style={labelStyle}>Top Project</div>
+                        <div style={valueStyle}>{formatName(topProject.name)}</div>
+                        <div style={{ fontSize: '0.8em', color: '#999' }}>{formatTime(topProject.value)}</div>
+                    </div>
+                </div>
+            </div>
 
             {/* Charts Area */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '20px' }}>
