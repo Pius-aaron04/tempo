@@ -7,7 +7,42 @@
     "dev": "vite",
     "build": "tsc && vite build && tsc -p tsconfig.electron.json",
     "preview": "vite preview",
-    "electron:dev": "concurrently -k \"pnpm run dev\" \"wait-on tcp:127.0.0.1:5173 && NODE_ENV=development electron . --no-sandbox\""
+    "electron:dev": "concurrently -k \"pnpm run dev\" \"wait-on tcp:127.0.0.1:5173 && NODE_ENV=development electron . --no-sandbox\"",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.tempo.app",
+    "productName": "Tempo",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development"
+    },
+    "win": {
+      "target": "nsis",
+      "extraResources": [
+        {
+          "from": "../agent/bin/tempo-agent.exe",
+          "to": "bin/tempo-agent.exe"
+        }
+      ]
+    },
+    "extraResources": [
+      {
+        "from": "../agent/bin/tempo-agent",
+        "to": "bin/tempo-agent"
+      }
+    ]
   },
   "dependencies": {
     "@tempo/contracts": "workspace:*",
@@ -22,6 +57,7 @@
     "@vitejs/plugin-react": "^4.0.0",
     "concurrently": "^8.0.0",
     "electron": "^25.0.0",
+    "electron-builder": "^24.6.4",
     "typescript": "^5.0.0",
     "vite": "^4.3.0",
     "wait-on": "^7.0.0"

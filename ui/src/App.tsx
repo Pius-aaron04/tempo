@@ -6,13 +6,7 @@ import { ProjectDetails } from './components/ProjectDetails';
 import { ProjectList } from './components/ProjectList';
 import { Layout, BarChart2, Folder, Settings, ChevronLeft, ChevronRight, Activity, LayoutDashboard, List } from 'lucide-react';
 
-declare global {
-  interface Window {
-    tempo?: {
-      request: (req: any) => Promise<any>;
-    };
-  }
-}
+
 
 function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'sessions' | 'projects'>('dashboard');

@@ -10,13 +10,77 @@ interface DashboardProps {
 
 type TimeRange = 7 | 30 | 365 | -1 | 0;
 
+const AgentControlPanel: React.FC = () => {
+    const [status, setStatus] = React.useState<'running' | 'stopped' | 'unknown'>('unknown');
+    const [loading, setLoading] = React.useState(false);
+
+    const checkStatus = async () => {
+        if (!window.tempo?.agentControl) return;
+        try {
+            const res = await window.tempo.agentControl('status');
+            if (res) setStatus(res.running ? 'running' : 'stopped');
+        } catch (e) {
+            console.error('Agent control error:', e);
+            setStatus('unknown');
+        }
+    };
+
+    React.useEffect(() => {
+        checkStatus();
+        const timer = setInterval(checkStatus, 5000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const toggleAgent = async () => {
+        setLoading(true);
+        const action = status === 'running' ? 'stop' : 'start';
+        try {
+            await window.tempo.agentControl(action);
+            // Wait a bit for startup
+            setTimeout(checkStatus, 1000);
+        } catch (e) {
+            console.error('Failed to toggle agent:', e);
+        }
+        setLoading(false);
+    };
+
+    if (status === 'unknown') return null;
+
+    return (
+        <div style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '4px 8px', background: '#f5f5f5', borderRadius: '6px', fontSize: '0.85em'
+        }}>
+            <div style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: status === 'running' ? '#4caf50' : '#f44336'
+            }} />
+            <span style={{ color: '#555' }}>
+                {status === 'running' ? 'Agent Active' : 'Agent Stopped'}
+            </span>
+            <button
+                onClick={toggleAgent}
+                disabled={loading}
+                style={{
+                    border: '1px solid #ddd', background: 'white', cursor: 'pointer',
+                    padding: '2px 6px', borderRadius: '4px', fontSize: '0.9em', marginLeft: '5px'
+                }}
+            >
+                {loading ? '...' : (status === 'running' ? 'Stop' : 'Start')}
+            </button>
+        </div>
+    );
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }) => {
     const [timeRange, setTimeRange] = React.useState<TimeRange>(0); // Default to Today
     const [trendData, setTrendData] = React.useState<any[]>([]);
     const [activityTrendData, setActivityTrendData] = React.useState<any[]>([]);
+    const [appTrendData, setAppTrendData] = React.useState<any[]>([]); // New: App Trends
     const [workPatternData, setWorkPatternData] = React.useState<any[]>([]);
     const [todaySessions, setTodaySessions] = React.useState<TempoSession[]>([]);
     const [langData, setLangData] = React.useState<any[]>([]);
+    const [appData, setAppData] = React.useState<any[]>([]); // New: App Pie Data
     const [totalDuration, setTotalDuration] = React.useState(0);
     const [topProject, setTopProject] = React.useState({ name: '-', value: 0 });
     const [topLang, setTopLang] = React.useState({ name: '-', value: 0 });
@@ -33,6 +97,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                 const activityTrends = await window.tempo.request({ type: 'query_trend', groupBy: 'language', days: timeRange });
                 if (activityTrends.success) setActivityTrendData(activityTrends.data);
 
+                const appTrends = await window.tempo.request({ type: 'query_trend', groupBy: 'app', days: timeRange });
+                if (appTrends.success) setAppTrendData(appTrends.data);
+
                 const workPattern = await window.tempo.request({ type: 'query_work_pattern', days: timeRange });
                 if (workPattern.success) setWorkPatternData(workPattern.data);
 
@@ -40,6 +107,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                 let total = 0;
                 const projAgg: Record<string, number> = {};
                 const langAgg: Record<string, number> = {};
+                const appAgg: Record<string, number> = {};
 
                 (trends.data || []).forEach((day: any) => {
                     Object.entries(day).forEach(([key, val]) => {
@@ -59,6 +127,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                     });
                 });
 
+                (appTrends.data || []).forEach((day: any) => {
+                    Object.entries(day).forEach(([key, val]) => {
+                        if (key !== 'date') {
+                            appAgg[key] = (appAgg[key] || 0) + (val as number);
+                        }
+                    });
+                });
+
                 setTotalDuration(total);
 
                 const sortedProjs = Object.entries(projAgg).sort((a, b) => b[1] - a[1]);
@@ -71,6 +147,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
 
                 // Prepare Pie Data
                 setLangData(sortedLangs.map(([name, value]) => ({ name, value })));
+
+                const sortedApps = Object.entries(appAgg).sort((a, b) => b[1] - a[1]);
+                setAppData(sortedApps.map(([name, value]) => ({ name, value })));
 
                 // 3. Today's Sessions (Always fetch specifically for today view)
                 const today = new Date().toISOString().split('T')[0];
@@ -165,6 +244,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                     {timeRange === -1 ? 'All Time Overview' : (timeRange === 0 ? 'Today\'s Overview' : `Last ${timeRange} Days Overview`)}
                 </h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <AgentControlPanel />
                     <Calendar size={16} color="#666" />
                     <select
                         value={timeRange}
@@ -307,6 +387,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                     </div>
                 </div>
 
+                {/* Editors Mix */}
+                <div style={chartCardStyle}>
+                    <h3 style={chartTitleStyle}>Editors Distribution</h3>
+                    <div style={{ height: '300px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={appData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {appData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
+                                    ))}
+                                </Pie>
+                                <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} />
+                                <Legend verticalAlign="bottom" height={36} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
                 {/* Work Pattern (Reading vs Writing) */}
                 <div style={chartCardStyle}>
                     <h3 style={chartTitleStyle}>Work Pattern (Reading vs Writing)</h3>
@@ -371,6 +477,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                             >
                                 <div style={{ fontWeight: 500, color: '#333' }}>{formatName(name)}</div>
                                 <div style={{ color: '#666', fontSize: '0.9em' }}>{formatTime(duration)}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Editors List */}
+                <div style={chartCardStyle}>
+                    <h3 style={chartTitleStyle}>Active Editors</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '15px' }}>
+                        {appData.slice(0, 12).map(({ name, value }) => (
+                            <div
+                                key={name}
+                                style={{
+                                    padding: '15px',
+                                    border: '1px solid #eee',
+                                    borderRadius: '8px',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center'
+                                }}
+                            >
+                                <div style={{ fontWeight: 500, color: '#333', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: getColor(name) }}></div>
+                                    {formatName(name)}
+                                </div>
+                                <div style={{ color: '#666', fontSize: '0.9em' }}>{formatTime(value)}</div>
                             </div>
                         ))}
                     </div>

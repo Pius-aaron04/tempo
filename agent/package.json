@@ -9,7 +9,14 @@
   "scripts": {
     "dev": "ts-node src/main.ts",
     "build": "tsc",
+    "package": "pkg .",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "pkg": {
+    "scripts": "dist/**/*.js",
+    "targets": [
+      "node18-linux-x64"
+    ]
   },
   "keywords": [],
   "author": "",
@@ -18,6 +25,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.0.3",
+    "pkg": "^5.8.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
