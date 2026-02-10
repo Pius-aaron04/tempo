@@ -2,19 +2,24 @@
   "name": "@tempo/ui",
   "version": "1.0.0",
   "description": "Desktop UI for Tempo",
+  "author": {
+    "name": "Tempo Team",
+    "email": "support@tempo.app"
+  },
+  "homepage": "https://github.com/pius-aaron/tempo",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && tsc -p tsconfig.electron.json",
     "preview": "vite preview",
     "electron:dev": "concurrently -k \"pnpm run dev\" \"wait-on tcp:127.0.0.1:5173 && NODE_ENV=development electron . --no-sandbox\"",
-    "dist": "electron-builder"
+    "dist": "pnpm run build && electron-builder"
   },
   "build": {
     "appId": "com.tempo.app",
     "productName": "Tempo",
     "directories": {
-      "output": "dist"
+      "output": "release"
     },
     "files": [
       "dist/**/*",
@@ -26,10 +31,13 @@
         "AppImage",
         "deb"
       ],
-      "category": "Development"
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "category": "Development",
+      "icon": "build/icon.png"
     },
     "win": {
       "target": "nsis",
+      "icon": "build/icon.png",
       "extraResources": [
         {
           "from": "../agent/bin/tempo-agent.exe",
@@ -39,8 +47,12 @@
     },
     "extraResources": [
       {
-        "from": "../agent/bin/tempo-agent",
+        "from": "../agent/agent",
         "to": "bin/tempo-agent"
+      },
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
       }
     ]
   },

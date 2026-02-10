@@ -9,13 +9,16 @@
   "scripts": {
     "dev": "ts-node src/main.ts",
     "build": "tsc",
-    "package": "pkg .",
+    "package": "rm -rf node_modules && pnpm install && pnpm run build && npm_config_target=18.0.0 npm_config_arch=x64 npm_config_target_platform=linux npm_config_build_from_source=true pnpm rebuild better-sqlite3 && mkdir -p native && cp node_modules/better-sqlite3/build/Release/better_sqlite3.node native/ && pkg . && pnpm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "pkg": {
     "scripts": "dist/**/*.js",
     "targets": [
       "node18-linux-x64"
+    ],
+    "assets": [
+      "native/better_sqlite3.node"
     ]
   },
   "keywords": [],

@@ -5,3 +5,11 @@ dist
 *.log
 .tempo/
 dist-electron
+agent/native
+ui/release
+release
+build/
+agent/agent
+*.vsix
+*.tgz
+agent/bin

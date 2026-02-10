@@ -26,9 +26,24 @@ const AgentControlPanel: React.FC = () => {
     };
 
     React.useEffect(() => {
-        checkStatus();
-        const timer = setInterval(checkStatus, 5000);
-        return () => clearInterval(timer);
+        const init = async () => {
+             // Only show in packaged app
+             try {
+                 const info = await window.tempo.getAppInfo?.();
+                 if (info && !info.isPackaged) {
+                     // In dev mode, we hide this control
+                     setStatus('hidden' as any); 
+                     return;
+                 }
+             } catch (e) {
+                 // ignore, assume packaged or old context
+             }
+
+            checkStatus();
+            const timer = setInterval(checkStatus, 5000);
+            return () => clearInterval(timer);
+        }
+        init();
     }, []);
 
     const toggleAgent = async () => {
@@ -44,7 +59,7 @@ const AgentControlPanel: React.FC = () => {
         setLoading(false);
     };
 
-    if (status === 'unknown') return null;
+    if (status === 'unknown' || status === ('hidden' as any)) return null;
 
     return (
         <div style={{

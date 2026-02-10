@@ -5,6 +5,7 @@ Tempo is a local-first developer activity tracker designed to help you understan
 ## Overview
 
 Tempo operates on a local server-client architecture:
+
 - **Agent**: A local Node.js process that stores data in a SQLite database.
 - **UI**: A desktop dashboard (Electron + React) for viewing usage stats.
 - **Collector**: VS Code extension that captures editor events.
@@ -32,12 +33,14 @@ This project is a monorepo managed with `pnpm`:
 ### Installation
 
 1. Clone the repository:
+
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Pius-aaron04/tempo.git
    cd tempo
    ```
 
 2. Install dependencies for all packages:
+
    ```bash
    pnpm install
    ```

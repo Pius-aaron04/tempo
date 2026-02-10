@@ -4,6 +4,12 @@
   "description": "Local-first developer activity tracker",
   "version": "0.0.1",
   "publisher": "tempo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pius-aaron04/tempo"
+  },
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.80.0"
   },

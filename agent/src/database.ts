@@ -1,20 +1,31 @@
-import Database from 'better-sqlite3';
-import { DB_PATH } from './paths';
-import { TempoEvent, TempoSession } from '@tempo/contracts';
+import Database from "better-sqlite3";
+import { DB_PATH } from "./paths";
+import { TempoEvent, TempoSession } from "@tempo/contracts";
+import path from "path";
 
 export class TempoDatabase {
   private db: Database.Database;
 
   constructor() {
-    this.db = new Database(DB_PATH);
+    let options: Database.Options = {};
+    // @ts-ignore
+    if (process.pkg) {
+      // When running in pkg, better-sqlite3 cannot automatically find the native binding.
+      // We bundled it in 'native/better_sqlite3.node' (sibling to 'dist/').
+      options.nativeBinding = path.join(
+        __dirname,
+        "../native/better_sqlite3.node",
+      );
+    }
+
+    this.db = new Database(DB_PATH, options);
     this.setupPragmas();
     this.initSchema();
-    console.log(`Database connection established at ${DB_PATH}`);
   }
 
   private setupPragmas() {
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('synchronous = NORMAL');
+    this.db.pragma("journal_mode = WAL");
+    this.db.pragma("synchronous = NORMAL");
   }
 
   private initSchema() {
@@ -41,19 +52,19 @@ export class TempoDatabase {
 
   public insertEvent(event: TempoEvent) {
     const stmt = this.db.prepare(
-      'INSERT INTO events (type, timestamp, source, payload) VALUES (?, ?, ?, ?)'
+      "INSERT INTO events (type, timestamp, source, payload) VALUES (?, ?, ?, ?)",
     );
     stmt.run(
       event.type,
       event.timestamp,
       event.source,
-      JSON.stringify(event.payload)
+      JSON.stringify(event.payload),
     );
   }
 
   public getRecentEvents(limit: number): TempoEvent[] {
     const stmt = this.db.prepare(
-      'SELECT type, timestamp, source, payload FROM events ORDER BY timestamp DESC LIMIT ?'
+      "SELECT type, timestamp, source, payload FROM events ORDER BY timestamp DESC LIMIT ?",
     );
     const rows = stmt.all(limit) as any[];
 
@@ -67,7 +78,7 @@ export class TempoDatabase {
 
   public createSession(session: TempoSession): string {
     const stmt = this.db.prepare(
-      'INSERT INTO sessions (start_time, last_active_time, end_time, duration_seconds, status, context) VALUES (?, ?, ?, ?, ?, ?)'
+      "INSERT INTO sessions (start_time, last_active_time, end_time, duration_seconds, status, context) VALUES (?, ?, ?, ?, ?, ?)",
     );
     const result = stmt.run(
       session.start_time,
@@ -75,7 +86,7 @@ export class TempoDatabase {
       session.end_time || null,
       session.duration_seconds,
       session.status,
-      JSON.stringify(session.context)
+      JSON.stringify(session.context),
     );
     return result.lastInsertRowid.toString();
   }
@@ -85,52 +96,59 @@ export class TempoDatabase {
     const values: any[] = [];
 
     if (updates.last_active_time) {
-      fields.push('last_active_time = ?');
+      fields.push("last_active_time = ?");
       values.push(updates.last_active_time);
     }
     if (updates.end_time !== undefined) {
-      fields.push('end_time = ?');
+      fields.push("end_time = ?");
       values.push(updates.end_time || null);
     }
     if (updates.duration_seconds !== undefined) {
-      fields.push('duration_seconds = ?');
+      fields.push("duration_seconds = ?");
       values.push(updates.duration_seconds);
     }
     if (updates.status) {
-      fields.push('status = ?');
+      fields.push("status = ?");
       values.push(updates.status);
     }
     if (updates.context) {
-      fields.push('context = ?');
+      fields.push("context = ?");
       values.push(JSON.stringify(updates.context));
     }
 
     if (fields.length === 0) return;
 
     values.push(id);
-    const stmt = this.db.prepare(`UPDATE sessions SET ${fields.join(', ')} WHERE id = ?`);
+    const stmt = this.db.prepare(
+      `UPDATE sessions SET ${fields.join(", ")} WHERE id = ?`,
+    );
     stmt.run(...values);
   }
 
-  public getRecentSessions(limit: number, startTime?: string, endTime?: string): TempoSession[] {
-    let query = 'SELECT id, start_time, last_active_time, end_time, duration_seconds, status, context FROM sessions';
+  public getRecentSessions(
+    limit: number,
+    startTime?: string,
+    endTime?: string,
+  ): TempoSession[] {
+    let query =
+      "SELECT id, start_time, last_active_time, end_time, duration_seconds, status, context FROM sessions";
     const params: any[] = [];
     const whereClauses: string[] = [];
 
     if (startTime) {
-      whereClauses.push('start_time >= ?');
+      whereClauses.push("start_time >= ?");
       params.push(startTime);
     }
     if (endTime) {
-      whereClauses.push('start_time <= ?');
+      whereClauses.push("start_time <= ?");
       params.push(endTime);
     }
 
     if (whereClauses.length > 0) {
-      query += ' WHERE ' + whereClauses.join(' AND ');
+      query += " WHERE " + whereClauses.join(" AND ");
     }
 
-    query += ' ORDER BY start_time DESC LIMIT ?';
+    query += " ORDER BY start_time DESC LIMIT ?";
     params.push(limit);
 
     const stmt = this.db.prepare(query);
@@ -147,31 +165,35 @@ export class TempoDatabase {
     })) as TempoSession[];
   }
 
-  public getAnalytics(groupBy: string, startTime?: string, endTime?: string): any[] {
-    let groupByClause = '';
-    let selectKey = '';
+  public getAnalytics(
+    groupBy: string,
+    startTime?: string,
+    endTime?: string,
+  ): any[] {
+    let groupByClause = "";
+    let selectKey = "";
 
     switch (groupBy) {
-      case 'hour':
+      case "hour":
         // SQLite strftime '%H' returns 00-23
         selectKey = "strftime('%H', start_time) as key";
         groupByClause = "strftime('%H', start_time)";
         break;
-      case 'day':
+      case "day":
         // SQLite date returns YYYY-MM-DD
         selectKey = "date(start_time) as key";
         groupByClause = "date(start_time)";
         break;
-      case 'month':
+      case "month":
         selectKey = "strftime('%Y-%m', start_time) as key";
         groupByClause = "strftime('%Y-%m', start_time)";
         break;
-      case 'project':
+      case "project":
         // Extract project_path from JSON context
         selectKey = "json_extract(context, '$.project_path') as key";
         groupByClause = "json_extract(context, '$.project_path')";
         break;
-      case 'language':
+      case "language":
         selectKey = "json_extract(context, '$.language') as key";
         groupByClause = "json_extract(context, '$.language')";
         break;
@@ -186,8 +208,8 @@ export class TempoDatabase {
         COUNT(*) as session_count 
       FROM sessions 
       WHERE key IS NOT NULL
-      ${startTime ? `AND start_time >= '${startTime}'` : ''}
-      ${endTime ? `AND start_time <= '${endTime}'` : ''}
+      ${startTime ? `AND start_time >= '${startTime}'` : ""}
+      ${endTime ? `AND start_time <= '${endTime}'` : ""}
       GROUP BY ${groupByClause} 
       ORDER BY total_duration_seconds DESC
     `;
@@ -197,19 +219,19 @@ export class TempoDatabase {
   }
 
   public getTrend(groupBy: string, days: number): any[] {
-    let groupByClause = '';
-    let selectKey = '';
+    let groupByClause = "";
+    let selectKey = "";
 
     switch (groupBy) {
-      case 'project':
+      case "project":
         selectKey = "json_extract(context, '$.project_path')";
         groupByClause = "json_extract(context, '$.project_path')";
         break;
-      case 'language':
+      case "language":
         selectKey = "json_extract(context, '$.language')";
         groupByClause = "json_extract(context, '$.language')";
         break;
-      case 'app':
+      case "app":
         selectKey = "json_extract(context, '$.app_name')";
         groupByClause = "json_extract(context, '$.app_name')";
         break;
@@ -225,7 +247,7 @@ export class TempoDatabase {
         ${selectKey} as name,
         SUM(duration_seconds) as duration
       FROM sessions
-      WHERE ${days === -1 ? '1=1' : (days === 0 ? "date(start_time, 'localtime') = date('now', 'localtime')" : `date(start_time) >= date('now', '-${days} days')`)}
+      WHERE ${days === -1 ? "1=1" : days === 0 ? "date(start_time, 'localtime') = date('now', 'localtime')" : `date(start_time) >= date('now', '-${days} days')`}
       AND name IS NOT NULL
       ${days === 0 ? "GROUP BY strftime('%H:00', start_time, 'localtime'), name" : "GROUP BY date, name"}
       ORDER BY date ASC
@@ -236,7 +258,7 @@ export class TempoDatabase {
     // Pivot the data suitable for Recharts { date: '2023-01-01', ProjectA: 100, ProjectB: 200 }
     const result: Record<string, any> = {};
 
-    rows.forEach(row => {
+    rows.forEach((row) => {
       if (!result[row.date]) {
         result[row.date] = { date: row.date };
       }
@@ -246,14 +268,18 @@ export class TempoDatabase {
     return Object.values(result);
   }
 
-  public getTrendAnalytics(groupBy: string, startTime?: string, endTime?: string): any[] {
+  public getTrendAnalytics(
+    groupBy: string,
+    startTime?: string,
+    endTime?: string,
+  ): any[] {
     // Re-implementing getAnalytics with dates if needed, or just relying on base implementation
     // For now, we update the base getAnalytics to accept optional dates
     return this.getAnalytics(groupBy, startTime, endTime);
   }
 
   public getWorkPattern(days: number): any[] {
-    // Logic: 
+    // Logic:
     // 1. Get all events for last N days.
     // 2. Sort by timestamp.
     // 3. Iterate and sum durations between events (gaps).
@@ -267,11 +293,13 @@ export class TempoDatabase {
     const stmt = this.db.prepare(`
       SELECT type, timestamp 
       FROM events 
-      ${days === -1 ? '' : (days === 0 ? "WHERE date(timestamp, 'localtime') = date('now', 'localtime')" : 'WHERE timestamp >= ?')}
+      ${days === -1 ? "" : days === 0 ? "WHERE date(timestamp, 'localtime') = date('now', 'localtime')" : "WHERE timestamp >= ?"}
       ORDER BY timestamp ASC
     `);
 
-    const events = (days === -1 || days === 0 ? stmt.all() : stmt.all(cutoffStr)) as { type: string; timestamp: string }[];
+    const events = (
+      days === -1 || days === 0 ? stmt.all() : stmt.all(cutoffStr)
+    ) as { type: string; timestamp: string }[];
     const IDLE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes matching SessionManager
 
     const dailyStats: Record<string, { reading: number; writing: number }> = {};
@@ -283,12 +311,20 @@ export class TempoDatabase {
     // Initialize dates in range to ensure we return 0s for empty days
     // For All Time, we can just use the range from the first event to now
     const now = new Date();
-    const effectiveDays = days === -1 ? Math.ceil((now.getTime() - new Date(events[0].timestamp).getTime()) / (1000 * 3600 * 24)) : (days === 0 ? 1 : days);
+    const effectiveDays =
+      days === -1
+        ? Math.ceil(
+            (now.getTime() - new Date(events[0].timestamp).getTime()) /
+              (1000 * 3600 * 24),
+          )
+        : days === 0
+          ? 1
+          : days;
 
     for (let i = 0; i < effectiveDays; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0]; // Usage for dailyStats key. For 'Today' (days=0), we might need hourly stats but getWorkPattern returns daily summary. 
+      const dateStr = d.toISOString().split("T")[0]; // Usage for dailyStats key. For 'Today' (days=0), we might need hourly stats but getWorkPattern returns daily summary.
       // Actually, for 'Today', getWorkPattern just returns one item: Today.
       dailyStats[dateStr] = { reading: 0, writing: 0 };
     }
@@ -297,16 +333,17 @@ export class TempoDatabase {
       const e = events[i];
       const currTime = new Date(e.timestamp).getTime();
       const gap = currTime - prevTime;
-      const dateStr = e.timestamp.split('T')[0];
+      const dateStr = e.timestamp.split("T")[0];
 
       // Ensure we handle date boundaries gracefully (assign to the day of the event)
-      if (!dailyStats[dateStr]) dailyStats[dateStr] = { reading: 0, writing: 0 };
+      if (!dailyStats[dateStr])
+        dailyStats[dateStr] = { reading: 0, writing: 0 };
 
       if (gap <= IDLE_THRESHOLD_MS) {
         const seconds = gap / 1000;
         // For 'Today' (days=0), events matches today. dateStr will be today.
         // We accumulate into that day.
-        if (e.type === 'file_edit') {
+        if (e.type === "file_edit") {
           dailyStats[dateStr].writing += seconds;
         } else {
           dailyStats[dateStr].reading += seconds;
@@ -323,11 +360,16 @@ export class TempoDatabase {
     Object.entries(dailyStats).forEach(([date, stats]) => {
       // filter out dates older than request if any (only if not All Time)
       // filter out dates older than request if any (only if not All Time)
-      if (days === -1 || (days === 0 ? date === now.toISOString().split('T')[0] : date >= cutoffStr.split('T')[0])) {
+      if (
+        days === -1 ||
+        (days === 0
+          ? date === now.toISOString().split("T")[0]
+          : date >= cutoffStr.split("T")[0])
+      ) {
         result.push({
           date: date,
           reading_seconds: Math.round(stats.reading),
-          writing_seconds: Math.round(stats.writing)
+          writing_seconds: Math.round(stats.writing),
         });
       }
     });
@@ -343,7 +385,7 @@ export class TempoDatabase {
         MAX(last_active_time) as last_active
       FROM sessions
       WHERE json_extract(context, '$.project_path') = ?
-      ${days === -1 ? '' : (days === 0 ? "AND date(start_time, 'localtime') = date('now', 'localtime')" : `AND date(start_time) >= date('now', '-${days} days')`)}
+      ${days === -1 ? "" : days === 0 ? "AND date(start_time, 'localtime') = date('now', 'localtime')" : `AND date(start_time) >= date('now', '-${days} days')`}
       AND file_path IS NOT NULL
       GROUP BY file_path
       ORDER BY duration DESC
@@ -352,10 +394,10 @@ export class TempoDatabase {
     const stmt = this.db.prepare(query);
     const rows = stmt.all(projectPath) as any[];
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       file_path: row.file_path,
       duration_seconds: row.duration,
-      last_active: row.last_active
+      last_active: row.last_active,
     }));
   }
 
