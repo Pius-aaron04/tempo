@@ -1,12 +1,12 @@
-import { TempoEvent, TempoSession, SessionContext } from '@tempo/contracts';
-import { TempoDatabase } from './database';
+import { TempoEvent, TempoSession, SessionContext } from "@tempo/contracts";
+import { TempoDatabase } from "./database";
 
 const IDLE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 
 export class SessionManager {
   private currentSession: TempoSession | null = null;
 
-  constructor(private db: TempoDatabase) { }
+  constructor(private db: TempoDatabase) {}
 
   public async processEvent(event: TempoEvent) {
     const eventTime = new Date(event.timestamp).getTime();
@@ -17,10 +17,15 @@ export class SessionManager {
       return;
     }
 
-    const lastActiveTime = new Date(this.currentSession.last_active_time).getTime();
+    const lastActiveTime = new Date(
+      this.currentSession.last_active_time,
+    ).getTime();
     const gap = eventTime - lastActiveTime;
 
-    if (gap > IDLE_THRESHOLD_MS || !this.isContextMatch(this.currentSession.context, context)) {
+    if (
+      gap > IDLE_THRESHOLD_MS ||
+      !this.isContextMatch(this.currentSession.context, context)
+    ) {
       // Close current session and start new one
       this.completeCurrentSession(event.timestamp);
       this.startNewSession(event, context);
@@ -35,13 +40,15 @@ export class SessionManager {
       start_time: event.timestamp,
       last_active_time: event.timestamp,
       duration_seconds: 0,
-      status: 'active',
+      status: "active",
       context: context,
     };
 
     const id = this.db.createSession(session);
     this.currentSession = { ...session, id };
-    console.log(`Started new session: ${id} (${context.app_name || context.project_path || 'unknown'})`);
+    console.log(
+      `Started new session: ${id} (${context.app_name || context.project_path || "unknown"})`,
+    );
   }
 
   private extendCurrentSession(timestamp: string, context: SessionContext) {
@@ -61,7 +68,7 @@ export class SessionManager {
     this.db.updateSession(this.currentSession.id, {
       last_active_time: timestamp,
       duration_seconds: duration,
-      context: mergedContext
+      context: mergedContext,
     });
   }
 
@@ -70,34 +77,86 @@ export class SessionManager {
 
     this.db.updateSession(this.currentSession.id, {
       end_time: timestamp,
-      status: 'completed'
+      status: "completed",
     });
 
-    console.log(`Completed session: ${this.currentSession.id}. Duration: ${this.currentSession.duration_seconds}s`);
+    console.log(
+      `Completed session: ${this.currentSession.id}. Duration: ${this.currentSession.duration_seconds}s`,
+    );
     this.currentSession = null;
   }
 
   private extractContext(event: TempoEvent): SessionContext {
     const context: SessionContext = {};
-    if (event.type === 'app_active') {
-      context.app_name = event.payload.app_name;
-    } else if (event.type === 'user_activity') {
-      context.file_path = event.payload.file_path;
-      context.project_path = event.payload.project_path;
-      context.language = event.payload.language;
-      context.app_name = 'Editor';
-    } else if ('file_path' in event.payload) {
-      context.file_path = event.payload.file_path;
-      context.project_path = event.payload.project_path;
-      context.language = event.payload.language;
-      context.app_name = 'Editor'; // Default if not specified, usually VS Code
+
+    // Always prefer explicit app_name from payload if available (e.g. from app_active)
+    // Otherwise fall back to event.source (e.g. "Visual Studio Code" from extension)
+    // "Editor" hardcoding is removed to allow specific app names.
+    let appName = event.source;
+
+    if (event.type === "app_active") {
+      context.app_name = event.payload.app_name || appName;
+    } else {
+      context.app_name = appName;
+
+      if ("file_path" in event.payload) {
+        context.file_path = event.payload.file_path;
+        context.project_path = event.payload.project_path;
+        context.language = event.payload.language;
+      }
     }
+
+    context.category = this.getAppCategory(context.app_name || "");
     return context;
+  }
+
+  private getAppCategory(
+    appName: string,
+  ): "editor" | "browser" | "terminal" | "other" {
+    const name = appName.toLowerCase();
+
+    if (
+      name.includes("code") ||
+      name.includes("cursor") ||
+      name.includes("intel") ||
+      name.includes("vim") ||
+      name.includes("sublime") ||
+      name.includes("atom") ||
+      name.includes("webstorm") ||
+      name.includes("rubymine") ||
+      name.includes("pycharm")
+    ) {
+      return "editor";
+    }
+
+    if (
+      name.includes("chrome") ||
+      name.includes("firefox") ||
+      name.includes("safari") ||
+      name.includes("edge") ||
+      name.includes("brave") ||
+      name.includes("arc")
+    ) {
+      return "browser";
+    }
+
+    if (
+      name.includes("terminal") ||
+      name.includes("term") ||
+      name.includes("bash") ||
+      name.includes("zsh") ||
+      name.includes("fish")
+    ) {
+      return "terminal";
+    }
+
+    return "other";
   }
 
   private isContextMatch(a: SessionContext, b: SessionContext): boolean {
     // If both have project_path, they must match
-    if (a.project_path && b.project_path && a.project_path !== b.project_path) return false;
+    if (a.project_path && b.project_path && a.project_path !== b.project_path)
+      return false;
 
     // If both have app_name, they must match
     if (a.app_name && b.app_name && a.app_name !== b.app_name) return false;

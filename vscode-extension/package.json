@@ -1,9 +1,9 @@
 {
   "name": "tempo-vscode",
-  "displayName": "Tempo",
+  "displayName": "TempoExtension",
   "description": "Local-first developer activity tracker",
   "version": "0.0.1",
-  "publisher": "tempo",
+  "publisher": "SudoTechAsAtechbro",
   "license": "MIT",
   "repository": {
     "type": "git",

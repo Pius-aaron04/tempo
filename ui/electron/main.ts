@@ -33,13 +33,8 @@ function startAgent() {
     return { success: false, message: "Agent binary not found (dev mode?)" };
   }
 
-  try {
-    if (process.platform !== "win32") {
-      fs.chmodSync(agentPath, "755");
-    }
-  } catch (err) {
-    console.error("Failed to set execution permissions:", err);
-  }
+  // fs.chmodSync was causing EPERM issues in some environments.
+  // The builder should handle permissions, or we assume it's executable.
 
   try {
     agentProcess = spawn(agentPath, [], {
@@ -143,15 +138,30 @@ function createWindow() {
 
 app.disableHardwareAcceleration();
 
-app.whenReady().then(() => {
-  createTray();
-  createWindow();
+const gotTheLock = app.requestSingleInstanceLock();
 
-  // Auto-start agent in production
-  if (app.isPackaged) {
-    startAgent();
-  }
-});
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    createTray();
+    createWindow();
+
+    // Auto-start agent in production
+    if (app.isPackaged) {
+      startAgent();
+    }
+  });
+}
 
 app.on("window-all-closed", () => {
   // Do NOT quit when all windows are closed

@@ -96,6 +96,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
     const [todaySessions, setTodaySessions] = React.useState<TempoSession[]>([]);
     const [langData, setLangData] = React.useState<any[]>([]);
     const [appData, setAppData] = React.useState<any[]>([]); // New: App Pie Data
+    const [categoryData, setCategoryData] = React.useState<any[]>([]); // New: Category Pie Data
     const [totalDuration, setTotalDuration] = React.useState(0);
     const [topProject, setTopProject] = React.useState({ name: '-', value: 0 });
     const [topLang, setTopLang] = React.useState({ name: '-', value: 0 });
@@ -114,6 +115,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
 
                 const appTrends = await window.tempo.request({ type: 'query_trend', groupBy: 'app', days: timeRange });
                 if (appTrends.success) setAppTrendData(appTrends.data);
+
+                const categoryTrends = await window.tempo.request({ type: 'query_trend', groupBy: 'category', days: timeRange });
+                if (categoryTrends.success) {
+                    // Similar aggregation logic needed below for Pie Chart
+                }
 
                 const workPattern = await window.tempo.request({ type: 'query_work_pattern', days: timeRange });
                 if (workPattern.success) setWorkPatternData(workPattern.data);
@@ -150,6 +156,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                     });
                 });
 
+                const catAgg: Record<string, number> = {};
+                (categoryTrends.data || []).forEach((day: any) => {
+                    Object.entries(day).forEach(([key, val]) => {
+                        if (key !== 'date') {
+                            catAgg[key] = (catAgg[key] || 0) + (val as number);
+                        }
+                    });
+                });
+
                 setTotalDuration(total);
 
                 const sortedProjs = Object.entries(projAgg).sort((a, b) => b[1] - a[1]);
@@ -165,6 +180,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
 
                 const sortedApps = Object.entries(appAgg).sort((a, b) => b[1] - a[1]);
                 setAppData(sortedApps.map(([name, value]) => ({ name, value })));
+
+                const sortedCats = Object.entries(catAgg).sort((a, b) => b[1] - a[1]);
+                setCategoryData(sortedCats.map(([name, value]) => ({ name, value })));
 
                 // 3. Today's Sessions (Always fetch specifically for today view)
                 const today = new Date().toISOString().split('T')[0];
@@ -418,6 +436,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                                     dataKey="value"
                                 >
                                     {appData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
+                                    ))}
+                                </Pie>
+                                <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} />
+                                <Legend verticalAlign="bottom" height={36} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Categories Mix */}
+                <div style={chartCardStyle}>
+                    <h3 style={chartTitleStyle}>Activity Categories</h3>
+                    <div style={{ height: '300px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={categoryData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {categoryData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
                                     ))}
                                 </Pie>

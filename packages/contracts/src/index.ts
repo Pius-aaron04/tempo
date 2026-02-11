@@ -1,16 +1,16 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 // --- Event Definitions ---
 
 export const EventType = z.enum([
-  'app_active', // App became active/focused
-  'file_open',  // File opened in editor
-  'file_edit',  // File modified
-  'file_close', // File closed
-  'idle_start', // User went idle (detected by integration or agent)
-  'idle_end',   // User returned
-  'shutdown',   // Agent or System shutting down
-  'user_activity', // Interactions like scrolling or cursor movement
+  "app_active", // App became active/focused
+  "file_open", // File opened in editor
+  "file_edit", // File modified
+  "file_close", // File closed
+  "idle_start", // User went idle (detected by integration or agent)
+  "idle_end", // User returned
+  "shutdown", // Agent or System shutting down
+  "user_activity", // Interactions like scrolling or cursor movement
 ]);
 
 export type EventType = z.infer<typeof EventType>;
@@ -33,37 +33,64 @@ export const FileEventPayload = z.object({
 });
 
 export const UserActivityPayload = z.object({
-  kind: z.enum(['scroll', 'cursor']),
+  kind: z.enum(["scroll", "cursor"]),
   file_path: z.string().optional(),
   project_path: z.string().optional(),
   language: z.string().optional(),
 });
 
 // Discriminated union for events
-export const TempoEventSchema = z.discriminatedUnion('type', [
-  BaseEventSchema.extend({ type: z.literal('app_active'), payload: AppActivePayload }),
-  BaseEventSchema.extend({ type: z.literal('file_open'), payload: FileEventPayload }),
-  BaseEventSchema.extend({ type: z.literal('file_edit'), payload: FileEventPayload }),
-  BaseEventSchema.extend({ type: z.literal('file_close'), payload: FileEventPayload }),
-  BaseEventSchema.extend({ type: z.literal('idle_start'), payload: z.object({}) }),
-  BaseEventSchema.extend({ type: z.literal('idle_end'), payload: z.object({}) }),
-  BaseEventSchema.extend({ type: z.literal('shutdown'), payload: z.object({}) }),
-  BaseEventSchema.extend({ type: z.literal('user_activity'), payload: UserActivityPayload }),
+export const TempoEventSchema = z.discriminatedUnion("type", [
+  BaseEventSchema.extend({
+    type: z.literal("app_active"),
+    payload: AppActivePayload,
+  }),
+  BaseEventSchema.extend({
+    type: z.literal("file_open"),
+    payload: FileEventPayload,
+  }),
+  BaseEventSchema.extend({
+    type: z.literal("file_edit"),
+    payload: FileEventPayload,
+  }),
+  BaseEventSchema.extend({
+    type: z.literal("file_close"),
+    payload: FileEventPayload,
+  }),
+  BaseEventSchema.extend({
+    type: z.literal("idle_start"),
+    payload: z.object({}),
+  }),
+  BaseEventSchema.extend({
+    type: z.literal("idle_end"),
+    payload: z.object({}),
+  }),
+  BaseEventSchema.extend({
+    type: z.literal("shutdown"),
+    payload: z.object({}),
+  }),
+  BaseEventSchema.extend({
+    type: z.literal("user_activity"),
+    payload: UserActivityPayload,
+  }),
 ]);
 
 export type TempoEvent = z.infer<typeof TempoEventSchema>;
 
-
 // --- Session Definitions ---
 
-export const SessionStatus = z.enum(['active', 'completed']);
+export const SessionStatus = z.enum(["active", "completed"]);
 export type SessionStatus = z.infer<typeof SessionStatus>;
+
+export const AppCategory = z.enum(["editor", "browser", "terminal", "other"]);
+export type AppCategory = z.infer<typeof AppCategory>;
 
 export const SessionContext = z.object({
   project_path: z.string().optional(),
   file_path: z.string().optional(),
   language: z.string().optional(),
   app_name: z.string().optional(),
+  category: AppCategory.optional(),
 });
 export type SessionContext = z.infer<typeof SessionContext>;
 
@@ -79,10 +106,17 @@ export const SessionSchema = z.object({
 
 export type TempoSession = z.infer<typeof SessionSchema>;
 
-
 // --- Analytics Definitions ---
 
-export const AnalyticsGroupBy = z.enum(['hour', 'day', 'month', 'project', 'language', 'app']);
+export const AnalyticsGroupBy = z.enum([
+  "hour",
+  "day",
+  "month",
+  "project",
+  "language",
+  "app",
+  "category",
+]);
 export type AnalyticsGroupBy = z.infer<typeof AnalyticsGroupBy>;
 
 export const AnalyticsResultItem = z.object({
@@ -97,7 +131,7 @@ export type AnalyticsResultItem = z.infer<typeof AnalyticsResultItem>;
 export const TrendResultItem = z.object({
   date: z.string(), // YYYY-MM-DD
   // Dynamic keys for projects/languages + 'date'
-  values: z.record(z.string(), z.number())
+  values: z.record(z.string(), z.number()),
 });
 export type TrendResultItem = z.infer<typeof TrendResultItem>;
 
@@ -112,17 +146,50 @@ export type WorkPatternResultItem = z.infer<typeof WorkPatternResultItem>;
 
 // --- IPC Definitions ---
 
-export const IpcRequestType = z.enum(['emit_event', 'query_events', 'query_sessions', 'query_analytics', 'query_trend', 'query_work_pattern', 'query_project_files', 'ping']);
+export const IpcRequestType = z.enum([
+  "emit_event",
+  "query_events",
+  "query_sessions",
+  "query_analytics",
+  "query_trend",
+  "query_work_pattern",
+  "query_project_files",
+  "ping",
+]);
 
-export const IpcRequestSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('emit_event'), event: TempoEventSchema }),
-  z.object({ type: z.literal('query_events'), limit: z.number().optional().default(50) }),
-  z.object({ type: z.literal('query_sessions'), limit: z.number().optional().default(50), startTime: z.string().optional(), endTime: z.string().optional() }),
-  z.object({ type: z.literal('query_analytics'), groupBy: AnalyticsGroupBy, startTime: z.string().optional(), endTime: z.string().optional() }),
-  z.object({ type: z.literal('query_trend'), groupBy: AnalyticsGroupBy, days: z.number().optional().default(7) }),
-  z.object({ type: z.literal('query_work_pattern'), days: z.number().optional().default(7) }),
-  z.object({ type: z.literal('query_project_files'), projectPath: z.string(), days: z.number().optional().default(7) }),
-  z.object({ type: z.literal('ping') }),
+export const IpcRequestSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("emit_event"), event: TempoEventSchema }),
+  z.object({
+    type: z.literal("query_events"),
+    limit: z.number().optional().default(50),
+  }),
+  z.object({
+    type: z.literal("query_sessions"),
+    limit: z.number().optional().default(50),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal("query_analytics"),
+    groupBy: AnalyticsGroupBy,
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal("query_trend"),
+    groupBy: AnalyticsGroupBy,
+    days: z.number().optional().default(7),
+  }),
+  z.object({
+    type: z.literal("query_work_pattern"),
+    days: z.number().optional().default(7),
+  }),
+  z.object({
+    type: z.literal("query_project_files"),
+    projectPath: z.string(),
+    days: z.number().optional().default(7),
+  }),
+  z.object({ type: z.literal("ping") }),
 ]);
 
 export type IpcRequest = z.infer<typeof IpcRequestSchema>;

@@ -197,6 +197,14 @@ export class TempoDatabase {
         selectKey = "json_extract(context, '$.language') as key";
         groupByClause = "json_extract(context, '$.language')";
         break;
+      case "app":
+        selectKey = "json_extract(context, '$.app_name') as key";
+        groupByClause = "json_extract(context, '$.app_name')";
+        break;
+      case "category":
+        selectKey = "json_extract(context, '$.category') as key";
+        groupByClause = "json_extract(context, '$.category')";
+        break;
       default:
         throw new Error(`Invalid groupBy: ${groupBy}`);
     }
@@ -234,6 +242,10 @@ export class TempoDatabase {
       case "app":
         selectKey = "json_extract(context, '$.app_name')";
         groupByClause = "json_extract(context, '$.app_name')";
+        break;
+      case "category":
+        selectKey = "json_extract(context, '$.category')";
+        groupByClause = "json_extract(context, '$.category')";
         break;
       default:
         // Default to project

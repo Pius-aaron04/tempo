@@ -3,7 +3,7 @@ name: Extension Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build-extension:
@@ -15,7 +15,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - uses: pnpm/action-setup@v2
         with:
@@ -33,7 +33,7 @@ jobs:
       - name: Package Extension
         run: |
           cd vscode-extension
-          vsce package
+          vsce package --no-dependencies
         # vsce publish -p ${{ secrets.VSCE_PAT }}
 
       - name: Upload Artifacts
