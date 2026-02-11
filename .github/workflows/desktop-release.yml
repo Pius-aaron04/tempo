@@ -3,7 +3,7 @@ name: Desktop Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build-linux:
@@ -11,15 +11,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'pnpm'
-
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 9
+          cache: "pnpm"
 
       - name: Install Dependencies
         run: pnpm install
@@ -36,7 +36,7 @@ jobs:
         run: pnpm --filter @tempo/ui dist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -48,15 +48,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'pnpm'
-
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 9
+          cache: "pnpm"
 
       - name: Install Dependencies
         run: pnpm install
@@ -74,7 +74,7 @@ jobs:
         run: pnpm --filter @tempo/ui dist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
