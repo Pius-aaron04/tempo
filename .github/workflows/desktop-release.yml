@@ -30,7 +30,7 @@ jobs:
       - name: Build Agent
         run: |
           pnpm --filter @tempo/agent build
-          pnpm --filter @tempo/agent package --out-path bin
+          pnpm --filter @tempo/agent package -- --out-path bin
 
       - name: Build & Release Desktop
         run: pnpm --filter @tempo/ui dist
@@ -67,7 +67,7 @@ jobs:
       - name: Build Agent (Windows)
         run: |
           pnpm --filter @tempo/agent build
-          pnpm --filter @tempo/agent package --out-path bin --targets node18-win-x64
+          pnpm --filter @tempo/agent package -- --out-path bin --targets node18-win-x64
           # Rename for consistency if needed, but pkg usually outputs tempo-agent.exe
 
       - name: Build & Release Desktop (Windows)
