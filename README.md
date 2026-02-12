@@ -30,7 +30,7 @@ This project is a monorepo managed with `pnpm`:
 - [Node.js](https://nodejs.org/) (v18 or higher)
 - [pnpm](https://pnpm.io/) (`npm install -g pnpm`)
 
-### Installation
+### Installation (Build from Source)
 
 1. Clone the repository:
 
@@ -39,15 +39,20 @@ This project is a monorepo managed with `pnpm`:
    cd tempo
    ```
 
-2. Install dependencies for all packages:
+2. Run the automated build script for your platform:
+
+   **Linux / macOS:**
 
    ```bash
-   pnpm install
+   ./scripts/build.sh
+   # Artifacts will be in ui/release/ (AppImage, deb, tar.gz)
    ```
 
-3. Build shared packages:
-   ```bash
-   pnpm --filter @tempo/contracts build
+   **Windows (PowerShell):**
+
+   ```powershell
+   .\scripts\build.ps1
+   # Artifacts will be in ui/release/ (.exe installer)
    ```
 
 ## Development Guide

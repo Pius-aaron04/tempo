@@ -21,27 +21,20 @@ jobs:
           node-version: 18
           cache: "pnpm"
 
-      - name: Install Dependencies
-        run: pnpm install
-
-      - name: Build Contracts
-        run: pnpm --filter @tempo/contracts build
-
-      - name: Build Agent
+      - name: Build & Package (Linux)
         run: |
-          pnpm --filter @tempo/agent build
-          pnpm --filter @tempo/agent package -- --out-path bin
-
-      - name: Build & Release Desktop
-        run: pnpm --filter @tempo/ui dist
+          chmod +x scripts/build.sh
+          ./scripts/build.sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Tempo-Linux-AppImage
-          path: ui/dist/*.AppImage
+          name: Tempo-Linux-Builds
+          path: |
+            ui/release/*.AppImage
+            ui/release/*.tar.gz
 
   build-windows:
     runs-on: windows-latest
@@ -58,20 +51,8 @@ jobs:
           node-version: 18
           cache: "pnpm"
 
-      - name: Install Dependencies
-        run: pnpm install
-
-      - name: Build Contracts
-        run: pnpm --filter @tempo/contracts build
-
-      - name: Build Agent (Windows)
-        run: |
-          pnpm --filter @tempo/agent build
-          pnpm --filter @tempo/agent package -- --out-path bin --targets node18-win-x64
-          # Rename for consistency if needed, but pkg usually outputs tempo-agent.exe
-
-      - name: Build & Release Desktop (Windows)
-        run: pnpm --filter @tempo/ui dist
+      - name: Build & Package (Windows)
+        run: .\scripts\build.ps1
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -79,4 +60,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Tempo-Windows-Setup
-          path: ui/dist/*.exe
+          path: ui/release/*.exe

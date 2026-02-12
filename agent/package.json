@@ -9,14 +9,13 @@
   "scripts": {
     "dev": "ts-node src/main.ts",
     "build": "tsc",
-    "package": "rm -rf node_modules && pnpm install && pnpm run build && npm_config_target=18.0.0 npm_config_arch=x64 npm_config_target_platform=linux npm_config_build_from_source=true pnpm rebuild better-sqlite3 && mkdir -p native && cp node_modules/better-sqlite3/build/Release/better_sqlite3.node native/ && pkg . && pnpm install",
+    "package": "rm -rf node_modules && pnpm install && pnpm run build && npm_config_target=18.0.0 npm_config_arch=x64 npm_config_target_platform=linux npm_config_build_from_source=true pnpm rebuild better-sqlite3 && mkdir -p native && cp node_modules/better-sqlite3/build/Release/better_sqlite3.node native/ && pkg . --targets node18-linux-x64 --output bin/tempo-agent && pnpm install",
+    "package-win": "pnpm run build && set npm_config_target=18.0.0&& set npm_config_arch=x64&& pnpm rebuild better-sqlite3 && if not exist native mkdir native && copy node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node native\\ && pkg . --targets node18-win-x64 --output bin/tempo-agent.exe",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "pkg": {
     "scripts": "dist/**/*.js",
-    "targets": [
-      "node18-linux-x64"
-    ],
+    "targets": [],
     "assets": [
       "native/better_sqlite3.node"
     ]

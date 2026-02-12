@@ -29,7 +29,8 @@
     "linux": {
       "target": [
         "AppImage",
-        "deb"
+        "deb",
+        "tar.gz"
       ],
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "category": "Development",
@@ -47,7 +48,7 @@
     },
     "extraResources": [
       {
-        "from": "../agent/agent",
+        "from": "../agent/bin/tempo-agent",
         "to": "bin/tempo-agent"
       },
       {

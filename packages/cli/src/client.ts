@@ -1,74 +1,77 @@
-import * as net from 'net';
-import * as os from 'os';
-import * as path from 'path';
-import { IpcRequest, IpcResponse } from '@tempo/contracts';
+import * as net from "net";
+import * as os from "os";
+import * as path from "path";
+import { IpcRequest, IpcResponse } from "@tempo/contracts";
 
 const HOME = os.homedir();
-const SOCKET_PATH = path.join(HOME, '.tempo', 'tempo.sock');
+const isWindows = process.platform === "win32";
+const SOCKET_PATH = isWindows
+  ? "\\\\.\\pipe\\tempo-agent.sock"
+  : path.join(HOME, ".tempo", "tempo.sock");
 
 export class TempoClient {
-    private socket: net.Socket;
-    private connected = false;
+  private socket: net.Socket;
+  private connected = false;
 
-    constructor() {
-        this.socket = new net.Socket();
+  constructor() {
+    this.socket = new net.Socket();
+  }
+
+  connect(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.socket.connect(SOCKET_PATH, () => {
+        this.connected = true;
+        resolve();
+      });
+
+      this.socket.on("error", (err) => {
+        reject(err);
+      });
+    });
+  }
+
+  async request(req: IpcRequest): Promise<IpcResponse> {
+    if (!this.connected) {
+      await this.connect();
     }
 
-    connect(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            this.socket.connect(SOCKET_PATH, () => {
-                this.connected = true;
-                resolve();
-            });
+    return new Promise((resolve, reject) => {
+      const onData = (data: Buffer) => {
+        const raw = data.toString();
+        const lines = raw.split("\n").filter((l) => l.trim().length > 0);
 
-            this.socket.on('error', (err) => {
-                reject(err);
-            });
-        });
-    }
-
-    async request(req: IpcRequest): Promise<IpcResponse> {
-        if (!this.connected) {
-            await this.connect();
+        // Assuming simple one-to-one request/response for CLI usage
+        for (const line of lines) {
+          try {
+            const response = JSON.parse(line) as IpcResponse;
+            cleanup();
+            resolve(response);
+            return;
+          } catch (e) {
+            // ignore partial JSON or keep waiting?
+            // For now, assume good packets.
+          }
         }
+      };
 
-        return new Promise((resolve, reject) => {
-            const onData = (data: Buffer) => {
-                const raw = data.toString();
-                const lines = raw.split('\n').filter(l => l.trim().length > 0);
+      const onError = (err: Error) => {
+        cleanup();
+        reject(err);
+      };
 
-                // Assuming simple one-to-one request/response for CLI usage
-                for (const line of lines) {
-                    try {
-                        const response = JSON.parse(line) as IpcResponse;
-                        cleanup();
-                        resolve(response);
-                        return;
-                    } catch (e) {
-                        // ignore partial JSON or keep waiting? 
-                        // For now, assume good packets.
-                    }
-                }
-            };
+      const cleanup = () => {
+        this.socket.removeListener("data", onData);
+        this.socket.removeListener("error", onError);
+      };
 
-            const onError = (err: Error) => {
-                cleanup();
-                reject(err);
-            };
+      this.socket.on("data", onData);
+      this.socket.on("error", onError);
 
-            const cleanup = () => {
-                this.socket.removeListener('data', onData);
-                this.socket.removeListener('error', onError);
-            };
+      this.socket.write(JSON.stringify(req) + "\n");
+    });
+  }
 
-            this.socket.on('data', onData);
-            this.socket.on('error', onError);
-
-            this.socket.write(JSON.stringify(req) + '\n');
-        });
-    }
-
-    close() {
-        this.socket.end();
-    }
+  close() {
+    this.socket.end();
+  }
 }

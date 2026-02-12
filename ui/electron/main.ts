@@ -6,7 +6,10 @@ import { spawn, ChildProcess } from "child_process";
 import { IpcRequest, IpcResponse } from "@tempo/contracts";
 import fs from "fs";
 
-const SOCKET_PATH = path.join(os.homedir(), ".tempo", "tempo.sock");
+const isWindows = process.platform === "win32";
+const SOCKET_PATH = isWindows
+  ? "\\\\.\\pipe\\tempo-agent.sock"
+  : path.join(os.homedir(), ".tempo", "tempo.sock");
 
 let mainWindow: BrowserWindow | null = null;
 let agentProcess: ChildProcess | null = null;
