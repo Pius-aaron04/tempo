@@ -16,8 +16,14 @@ pnpm --filter @tempo/agent build
 if ($LASTEXITCODE -ne 0) { Write-Error "Build failed at agent build step"; exit 1 }
 
 Write-Host "Packaging Agent..." -ForegroundColor Green
-# pnpm package-win handles the Windows-specific rebuild and pkg targeting
-pnpm --filter @tempo/agent package-win
+# Agent is now bundled as source/dist by UI build.
+# We create a self-contained deployment to ensure node_modules are valid.
+Write-Host "Deploying Agent dependencies..." -ForegroundColor Green
+if (Test-Path agent-deploy) { Remove-Item agent-deploy -Recurse -Force }
+pnpm --filter @tempo/agent deploy agent-deploy --prod --legacy
+# Ensure dist is fresh
+Copy-Item -Path agent\dist -Destination agent-deploy\ -Recurse -Force
+
 if ($LASTEXITCODE -ne 0) { Write-Error "Build failed at agent package step"; exit 1 }
 
 # 4. Build UI

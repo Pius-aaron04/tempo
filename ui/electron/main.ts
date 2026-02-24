@@ -6,6 +6,8 @@ import { spawn, ChildProcess } from "child_process";
 import { IpcRequest, IpcResponse } from "@tempo/contracts";
 import fs from "fs";
 
+// Fix PATH for GUI launches (AppImage/Packaged apps) on macOS/Linux
+
 const isWindows = process.platform === "win32";
 const SOCKET_PATH = isWindows
   ? "\\\\.\\pipe\\tempo-agent.sock"
@@ -18,41 +20,118 @@ let isQuitting = false;
 
 function getAgentPath(): string | null {
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, "bin", "tempo-agent");
+    // In production, agent is bundled in resources/agent/dist/main.js
+    return path.join(process.resourcesPath, "agent", "dist", "main.js");
   }
-  // In development, we assume the developer runs the agent manually.
-  // Or we could return reference to ts-node if we wanted to spawn it in dev too.
-  return null;
+  // In development, return the source path (we'll run it with ts-node or node)
+  return path.join(__dirname, "../../agent/dist/main.js");
 }
 
-function startAgent() {
-  if (agentProcess) {
+function fixPath() {
+  if (process.platform === "win32") {
+    return;
+  }
+
+  // Fallback paths that are common on macOS/Linux
+  const fallbacks = [
+    "./node_modules/.bin",
+    "/.nodebrew/current/bin",
+    "/usr/local/bin",
+    process.env.PATH,
+  ].join(":");
+
+  try {
+    // Try to get the actual shell path synchronously
+    const shell = process.env.SHELL || "/bin/sh";
+
+    // For macOS, we need to handle Interactive and login shell
+    // For Linux, Interactive shell is usually enough
+    const args = process.platform === "darwin" ? ["-ilc"] : ["-ic"];
+    const command = `"${shell}" ${args[0]} 'echo -n "_SHELL_ENV_DELIMITER_"; env; echo -n "_SHELL_ENV_DELIMITER_"; exit'`;
+
+    const output = require("child_process").execSync(command, {
+      encoding: "utf8",
+      timeout: 3000, // Don't hang forever
+    });
+
+    // Extract everything between our delimiters
+    const matches = output.split("_SHELL_ENV_DELIMITER_");
+    if (matches && matches.length >= 2) {
+      const envOutput = matches[1];
+
+      // Parse the output line by line to find PATH
+      for (const line of envOutput.split("\\n")) {
+        if (line.startsWith("PATH=")) {
+          const pathValue = line.substring("PATH=".length).trim();
+          if (pathValue) {
+            process.env.PATH = pathValue;
+            return;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Failed to read shell PATH:", error);
+  }
+
+  // If extraction failed, use fallbacks
+  process.env.PATH = fallbacks;
+}
+
+// Fix PATH for GUI launches (AppImage/Packaged apps) on macOS/Linux
+fixPath();
+
+function checkAgentRunning(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const client = net.createConnection(SOCKET_PATH, () => {
+      client.end();
+      resolve(true);
+    });
+    client.on("error", () => {
+      resolve(false);
+    });
+  });
+}
+
+async function startAgent() {
+  const isRunning = await checkAgentRunning();
+  if (isRunning) {
+    console.log("Agent already running.");
     return { success: true, message: "Agent already running" };
   }
 
-  const agentPath = getAgentPath();
-  if (!agentPath) {
-    console.log("Agent binary not found or in dev mode.");
-    return { success: false, message: "Agent binary not found (dev mode?)" };
+  const agentScript = getAgentPath();
+  if (!agentScript || !fs.existsSync(agentScript)) {
+    console.error("Agent script not found:", agentScript);
+    return { success: false, message: "Agent script not found" };
   }
 
-  // fs.chmodSync was causing EPERM issues in some environments.
-  // The builder should handle permissions, or we assume it's executable.
+  console.log("Spawning agent from:", agentScript);
 
   try {
-    agentProcess = spawn(agentPath, [], {
-      stdio: "inherit", // Pie the output to electron's stdout/stderr
-      detached: false, // Ensure it dies with the parent for now, unless we want true daemon
+    const logPath = path.join(os.homedir(), ".tempo", "agent.log");
+    // Ensure .tempo dir exists (it might not if this is first run, though agent should create it, but we are writing logs before agent starts)
+    if (!fs.existsSync(path.dirname(logPath))) {
+      fs.mkdirSync(path.dirname(logPath), { recursive: true });
+    }
+
+    const logFile = fs.openSync(logPath, "a");
+    const errFile = fs.openSync(logPath, "a");
+
+    // Spawn logical:
+    // 1. Use system 'node' from PATH (simplest dev workflow, matches user's environment)
+    // 2. No need for ELECTRON_RUN_AS_NODE since we aren't using Electron's binary
+    // 3. Detached = true
+    // 4. Stdio = Redirect to log file
+
+    agentProcess = spawn("node", [agentScript], {
+      env: { ...process.env },
+      stdio: ["ignore", logFile, errFile],
+      detached: true,
+      windowsHide: true,
     });
 
-    agentProcess.on("error", (err) => {
-      console.error("Failed to start agent:", err);
-    });
-
-    agentProcess.on("exit", (code, signal) => {
-      console.log(`Agent exited with code ${code} signal ${signal}`);
-      agentProcess = null;
-    });
+    agentProcess.unref();
 
     return { success: true, message: "Agent started" };
   } catch (e: any) {
@@ -62,12 +141,23 @@ function startAgent() {
 }
 
 function stopAgent() {
+  /* We generally don't want to stop the detached agent from the UI
+  unless explicitly requested. But if we do, we can't easily kill
+  a detached process unless we stored its PID somewhere persistent.
+  For this implementation, 'stopAgent' inside UI might only be effective
+  if we captured the reference, but since it's detached and we might
+  be restarting the UI, we might not have the reference.
+
+  However, if we just spawned it, we have 'agentProcess'.*/
   if (agentProcess) {
     agentProcess.kill();
     agentProcess = null;
     return { success: true, message: "Agent stopped" };
   }
-  return { success: false, message: "Agent not running" };
+  return {
+    success: false,
+    message: "Agent not running (or not owned by this instance)",
+  };
 }
 
 function createTray() {
@@ -112,7 +202,9 @@ function createWindow() {
       nodeIntegration: false,
     },
     title: "Tempo Dashboard",
-    icon: path.join(__dirname, "../build/icon.png"), // Ensure window icon is also set
+    icon: app.isPackaged
+      ? path.join(process.resourcesPath, "icon.png")
+      : path.join(__dirname, "../build/icon.png"),
   });
 
   if (process.env.NODE_ENV === "development") {
@@ -214,7 +306,7 @@ ipcMain.handle(
 ipcMain.handle(
   "agent-control",
   async (_event, action: "start" | "stop" | "status") => {
-    if (action === "start") return startAgent();
+    if (action === "start") return await startAgent();
     if (action === "stop") return stopAgent();
     if (action === "status") {
       // Check if process is running OR if socket is responsive?

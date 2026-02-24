@@ -21,6 +21,9 @@ jobs:
           node-version: 18
           cache: "pnpm"
 
+      - name: Setup Typescript
+        run: pnpm install -g typescript
+
       - name: Build & Package (Linux)
         run: |
           chmod +x scripts/build.sh
@@ -50,6 +53,15 @@ jobs:
         with:
           node-version: 18
           cache: "pnpm"
+
+      - name: Setup Typescript
+        run: pnpm install -g typescript
+
+      - name: Install rimraf
+        run: pnpm install -g rimraf
+
+      - name: Node gyp
+        run: pnpm install -g node-gyp
 
       - name: Build & Package (Windows)
         run: .\scripts\build.ps1

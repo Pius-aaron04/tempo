@@ -4,7 +4,8 @@ import { Dashboard } from './components/Dashboard';
 import { SessionList } from './components/SessionList';
 import { ProjectDetails } from './components/ProjectDetails';
 import { ProjectList } from './components/ProjectList';
-import { Layout, BarChart2, Folder, Settings, ChevronLeft, ChevronRight, Activity, LayoutDashboard, List } from 'lucide-react';
+import { Folder, Settings, LayoutDashboard, List } from 'lucide-react';
+
 
 
 
@@ -72,13 +73,15 @@ function App() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '40px', paddingLeft: isCollapsed ? '0' : '10px', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
           <div
-            style={{ background: '#333', color: 'white', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             onClick={() => setIsCollapsed(!isCollapsed)}
           >
-            <Activity size={20} />
+            <img src="./build/icon.png" alt="Tempo" style={{ width: '64px', height: '64px', borderRadius: '6px' }} />
           </div>
           {!isCollapsed && <h1 style={{ fontSize: '1.2em', fontWeight: 'bold', margin: 0 }}>Tempo</h1>}
         </div>
+
+
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
           <NavItem

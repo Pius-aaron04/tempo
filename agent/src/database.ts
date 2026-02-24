@@ -7,16 +7,8 @@ export class TempoDatabase {
   private db: Database.Database;
 
   constructor() {
+    // Standard native module loading handled by Node.js/Electron
     let options: Database.Options = {};
-    // @ts-ignore
-    if (process.pkg) {
-      // When running in pkg, better-sqlite3 cannot automatically find the native binding.
-      // We bundled it in 'native/better_sqlite3.node' (sibling to 'dist/').
-      options.nativeBinding = path.join(
-        __dirname,
-        "../native/better_sqlite3.node",
-      );
-    }
 
     this.db = new Database(DB_PATH, options);
     this.setupPragmas();

@@ -4,7 +4,7 @@
   "description": "Desktop UI for Tempo",
   "author": {
     "name": "Tempo Team",
-    "email": "support@tempo.app"
+    "email": "piuschbz@gmail.com"
   },
   "homepage": "https://github.com/pius-aaron/tempo",
   "main": "dist-electron/main.js",
@@ -41,15 +41,31 @@
       "icon": "build/icon.png",
       "extraResources": [
         {
-          "from": "../agent/bin/tempo-agent.exe",
-          "to": "bin/tempo-agent.exe"
+          "from": "../agent-deploy/dist",
+          "to": "agent/dist"
+        },
+        {
+          "from": "../agent-deploy/node_modules",
+          "to": "agent/node_modules"
+        },
+        {
+          "from": "../agent-deploy/package.json",
+          "to": "agent/package.json"
         }
       ]
     },
     "extraResources": [
       {
-        "from": "../agent/bin/tempo-agent",
-        "to": "bin/tempo-agent"
+        "from": "../agent-deploy/dist",
+        "to": "agent/dist"
+      },
+      {
+        "from": "../agent-deploy/node_modules",
+        "to": "agent/node_modules"
+      },
+      {
+        "from": "../agent-deploy/package.json",
+        "to": "agent/package.json"
       },
       {
         "from": "build/icon.png",

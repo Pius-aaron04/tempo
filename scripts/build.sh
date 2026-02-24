@@ -15,8 +15,15 @@ pnpm --filter @tempo/contracts build
 echo "Building Agent..."
 pnpm --filter @tempo/agent build
 echo "Packaging Agent..."
-# We rely on the package script to handle output paths
-pnpm --filter @tempo/agent package
+# Agent is now bundled as source/dist by UI build.
+# We create a self-contained deployment to ensure node_modules are valid (no workspace symlinks).
+echo "Deploying Agent dependencies..."
+rm -rf agent-deploy
+pnpm --filter @tempo/agent deploy agent-deploy --prod --legacy
+# Ensure dist is fresh (deploy might copy old dist or none)
+cp -r agent/dist agent-deploy/
+
+
 
 # 4. Build UI
 echo "Building UI & Packaging App..."
