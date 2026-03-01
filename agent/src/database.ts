@@ -1,7 +1,6 @@
 import Database from "better-sqlite3";
 import { DB_PATH } from "./paths";
 import { TempoEvent, TempoSession } from "@tempo/contracts";
-import path from "path";
 
 export class TempoDatabase {
   private db: Database.Database;

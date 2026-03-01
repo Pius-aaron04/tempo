@@ -76,6 +76,9 @@ importers:
       '@tempo/contracts':
         specifier: workspace:*
         version: link:../packages/contracts
+      better-sqlite3:
+        specifier: ^12.5.0
+        version: 12.5.0
       lucide-react:
         specifier: ^0.562.0
         version: 0.562.0(react@18.3.1)

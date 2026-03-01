@@ -1,4 +1,13 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Tray,
+  Menu,
+  nativeImage,
+  UtilityProcess,
+  utilityProcess,
+} from "electron";
 import * as path from "path";
 import * as net from "net";
 import * as os from "os";
@@ -14,14 +23,16 @@ const SOCKET_PATH = isWindows
   : path.join(os.homedir(), ".tempo", "tempo.sock");
 
 let mainWindow: BrowserWindow | null = null;
-let agentProcess: ChildProcess | null = null;
+let agentProcess: ChildProcess | UtilityProcess | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 
 function getAgentPath(): string | null {
   if (app.isPackaged) {
-    // In production, agent is bundled in resources/agent/dist/main.js
-    return path.join(process.resourcesPath, "agent", "dist", "main.js");
+    // In production, the entire built agent folder is inside the ASAR alongside the UI backend
+    const agentPath = path.join(__dirname, "agent", "main.js");
+    console.log("agent path:", agentPath);
+    return agentPath;
   }
   // In development, return the source path (we'll run it with ts-node or node)
   return path.join(__dirname, "../../agent/dist/main.js");
@@ -115,25 +126,58 @@ async function startAgent() {
       fs.mkdirSync(path.dirname(logPath), { recursive: true });
     }
 
-    const logFile = fs.openSync(logPath, "a");
-    const errFile = fs.openSync(logPath, "a");
+    // Spawn logic:
+    // 1. Use Electron utilityProcess (handles ASAR natively while maintaining Node.js context)
+    // 2. Default stdio pipe to redirect streams to our log file
 
-    // Spawn logical:
-    // 1. Use system 'node' from PATH (simplest dev workflow, matches user's environment)
-    // 2. No need for ELECTRON_RUN_AS_NODE since we aren't using Electron's binary
-    // 3. Detached = true
-    // 4. Stdio = Redirect to log file
-
-    agentProcess = spawn("node", [agentScript], {
-      env: { ...process.env },
-      stdio: ["ignore", logFile, errFile],
-      detached: true,
-      windowsHide: true,
+    agentProcess = utilityProcess.fork(agentScript, [], {
+      stdio: "pipe",
+      env: process.env,
     });
 
-    agentProcess.unref();
+    const formatLog = (data: Buffer | string) => {
+      const timestamp = new Date().toISOString();
+      return (
+        data
+          .toString()
+          .trimEnd()
+          .split("\\n")
+          .map((line) => `[${timestamp}] ${line}`)
+          .join("\\n") + "\\n"
+      );
+    };
 
-    return { success: true, message: "Agent started" };
+    agentProcess.stdout?.on("data", (data) =>
+      fs.appendFileSync(logPath, formatLog(data)),
+    );
+    agentProcess.stderr?.on("data", (data) =>
+      fs.appendFileSync(logPath, formatLog(data)),
+    );
+
+    return new Promise((resolve) => {
+      if (!agentProcess) {
+        resolve({
+          success: false,
+          message: "Failed to initialize utilityProcess",
+        });
+        return;
+      }
+
+      const onSpawn = () => {
+        console.log("Agent process spawned successfully");
+        resolve({ success: true, message: "Agent started" });
+      };
+
+      const onExit = (code: number) => {
+        console.error(`Agent process exited immediately with code: ${code}`);
+        resolve({ success: false, message: `Agent exited with code: ${code}` });
+      };
+
+      if (typeof (agentProcess as any).once === "function") {
+        (agentProcess as any).once("spawn", onSpawn);
+        (agentProcess as any).once("exit", onExit);
+      }
+    });
   } catch (e: any) {
     console.error("Error spawning agent:", e);
     return { success: false, message: e.message };

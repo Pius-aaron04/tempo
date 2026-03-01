@@ -5,7 +5,9 @@ import * as fs from "fs";
 import { ensureDataDir, SOCKET_PATH } from "./paths";
 import { TempoDatabase } from "./database";
 import { SessionManager } from "./sessions";
-import { IpcRequestSchema, IpcResponse } from "@tempo/contracts";
+import type { IpcResponse } from "@tempo/contracts";
+import * as contracts from "@tempo/contracts";
+const IpcRequestSchema = contracts.IpcRequestSchema;
 
 async function main() {
   ensureDataDir();

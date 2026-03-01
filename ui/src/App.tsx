@@ -76,7 +76,7 @@ function App() {
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             onClick={() => setIsCollapsed(!isCollapsed)}
           >
-            <img src="./build/icon.png" alt="Tempo" style={{ width: '64px', height: '64px', borderRadius: '6px' }} />
+            <img src="../build/icon.png" alt="Tempo" style={{ width: '64px', height: '64px', borderRadius: '6px' }} />
           </div>
           {!isCollapsed && <h1 style={{ fontSize: '1.2em', fontWeight: 'bold', margin: 0 }}>Tempo</h1>}
         </div>
