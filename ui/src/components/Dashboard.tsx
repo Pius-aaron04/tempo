@@ -231,8 +231,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
         return `${h}h ${m}m`;
     };
 
-    // Extract basename for project display
-    const formatName = (name: string) => name.split(/[\\/]/).pop() || name;
+    // Extract basename for project display and capitalize
+    const formatName = (name: string) => {
+        const base = name.split(/[\\/]/).pop() || name;
+        return base.charAt(0).toUpperCase() + base.slice(1);
+    };
 
     const useLineChart = timeRange === -1 || timeRange > 30;
     const isToday = timeRange === 0;

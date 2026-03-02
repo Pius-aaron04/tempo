@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { TempoSession } from '@tempo/contracts';
 import { Dashboard } from './components/Dashboard';
-import { SessionList } from './components/SessionList';
 import { ProjectDetails } from './components/ProjectDetails';
 import { ProjectList } from './components/ProjectList';
 import { Folder, Settings, LayoutDashboard, List } from 'lucide-react';
+// @ts-ignore
+import iconUrl from '../build/icon.png';
 
 
 
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'sessions' | 'projects'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'projects'>('dashboard');
   const [view, setView] = useState<'dashboard' | 'project_details'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [sessions, setSessions] = useState<TempoSession[]>([]);
@@ -76,7 +77,7 @@ function App() {
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             onClick={() => setIsCollapsed(!isCollapsed)}
           >
-            <img src="../build/icon.png" alt="Tempo" style={{ width: '64px', height: '64px', borderRadius: '6px' }} />
+            <img src={iconUrl} alt="Tempo" style={{ width: '64px', height: '64px', borderRadius: '6px' }} />
           </div>
           {!isCollapsed && <h1 style={{ fontSize: '1.2em', fontWeight: 'bold', margin: 0 }}>Tempo</h1>}
         </div>
@@ -89,13 +90,6 @@ function App() {
             label="Dashboard"
             active={activeTab === 'dashboard'}
             onClick={() => { setActiveTab('dashboard'); setView('dashboard'); }}
-            collapsed={isCollapsed}
-          />
-          <NavItem
-            icon={<List size={20} />}
-            label="Sessions"
-            active={activeTab === 'sessions'}
-            onClick={() => { setActiveTab('sessions'); setView('dashboard'); }}
             collapsed={isCollapsed}
           />
           <NavItem
@@ -144,7 +138,6 @@ function App() {
             ) : (
               <>
                 {activeTab === 'dashboard' && <Dashboard sessions={sessions} onProjectClick={handleProjectClick} />}
-                {activeTab === 'sessions' && <SessionList sessions={sessions} />}
                 {activeTab === 'projects' && <ProjectList onProjectClick={handleProjectClick} />}
               </>
             )}

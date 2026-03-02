@@ -312,31 +312,38 @@ export class TempoDatabase {
     let prevTime = new Date(events[0].timestamp).getTime();
 
     // Initialize dates in range to ensure we return 0s for empty days
-    // For All Time, we can just use the range from the first event to now
     const now = new Date();
-    const effectiveDays =
-      days === -1
-        ? Math.ceil(
-            (now.getTime() - new Date(events[0].timestamp).getTime()) /
-              (1000 * 3600 * 24),
-          )
-        : days === 0
-          ? 1
+
+    if (days === 0) {
+      for (let i = 0; i <= 23; i++) {
+        const hStr = i.toString().padStart(2, "0") + ":00";
+        dailyStats[hStr] = { reading: 0, writing: 0 };
+      }
+    } else {
+      const effectiveDays =
+        days === -1
+          ? Math.ceil(
+              (now.getTime() - new Date(events[0].timestamp).getTime()) /
+                (1000 * 3600 * 24),
+            )
           : days;
 
-    for (let i = 0; i < effectiveDays; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split("T")[0]; // Usage for dailyStats key. For 'Today' (days=0), we might need hourly stats but getWorkPattern returns daily summary.
-      // Actually, for 'Today', getWorkPattern just returns one item: Today.
-      dailyStats[dateStr] = { reading: 0, writing: 0 };
+      for (let i = 0; i < effectiveDays; i++) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split("T")[0];
+        dailyStats[dateStr] = { reading: 0, writing: 0 };
+      }
     }
 
     for (let i = 1; i < events.length; i++) {
       const e = events[i];
       const currTime = new Date(e.timestamp).getTime();
       const gap = currTime - prevTime;
-      const dateStr = e.timestamp.split("T")[0];
+      const dateStr =
+        days === 0
+          ? new Date(e.timestamp).getHours().toString().padStart(2, "0") + ":00"
+          : e.timestamp.split("T")[0];
 
       // Ensure we handle date boundaries gracefully (assign to the day of the event)
       if (!dailyStats[dateStr])
@@ -363,12 +370,7 @@ export class TempoDatabase {
     Object.entries(dailyStats).forEach(([date, stats]) => {
       // filter out dates older than request if any (only if not All Time)
       // filter out dates older than request if any (only if not All Time)
-      if (
-        days === -1 ||
-        (days === 0
-          ? date === now.toISOString().split("T")[0]
-          : date >= cutoffStr.split("T")[0])
-      ) {
+      if (days === -1 || days === 0 || date >= cutoffStr.split("T")[0]) {
         result.push({
           date: date,
           reading_seconds: Math.round(stats.reading),
