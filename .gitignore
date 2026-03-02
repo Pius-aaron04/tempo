@@ -13,3 +13,4 @@ agent/agent
 *.vsix
 *.tgz
 agent/bin
+!ui/build/icon.png
