@@ -11,9 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -44,9 +44,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -56,12 +56,6 @@ jobs:
 
       - name: Setup Typescript
         run: pnpm install -g typescript
-
-      - name: Install rimraf
-        run: pnpm install -g rimraf
-
-      - name: Node gyp
-        run: pnpm install -g node-gyp
 
       - name: Build & Package (Windows)
         run: .\scripts\build.ps1
