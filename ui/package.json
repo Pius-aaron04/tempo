@@ -6,7 +6,8 @@
     "name": "Tempo Team",
     "email": "piuschbz@gmail.com"
   },
-  "homepage": "https://github.com/pius-aaron/tempo",
+  "homepage": "https://github.com/Pius-aaron04/tempo",
+  "repository": "github:Pius-aaron04/tempo",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
@@ -19,6 +20,7 @@
     "appId": "com.tempo.app",
     "productName": "Tempo",
     "electronVersion": "25.9.8",
+    "npmRebuild": false,
     "directories": {
       "output": "release"
     },
