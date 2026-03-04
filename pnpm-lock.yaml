@@ -20,6 +20,9 @@ importers:
       better-sqlite3:
         specifier: ^12.5.0
         version: 12.5.0
+      bindings:
+        specifier: ^1.5.0
+        version: 1.5.0
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.13
@@ -136,7 +139,7 @@ importers:
         specifier: ^1.80.0
         version: 1.107.0
       typescript:
-        specifier: ^5.9.3
+        specifier: ^5.0.0
         version: 5.9.3
 
 packages:

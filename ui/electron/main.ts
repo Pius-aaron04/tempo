@@ -127,13 +127,19 @@ async function startAgent() {
     }
 
     // Spawn logic:
-    // 1. Use Electron utilityProcess (handles ASAR natively while maintaining Node.js context)
-    // 2. Default stdio pipe to redirect streams to our log file
-
-    agentProcess = utilityProcess.fork(agentScript, [], {
-      stdio: "pipe",
-      env: process.env,
-    });
+    // 1. In PROD: Use Electron's utilityProcess to natively read app.asar.
+    // 2. In DEV: Use standard system Node.js to circumvent native ABI mismatches with local better-sqlite3 compilations.
+    if (app.isPackaged) {
+      agentProcess = utilityProcess.fork(agentScript, [], {
+        stdio: "pipe",
+        env: process.env,
+      });
+    } else {
+      agentProcess = spawn("node", [agentScript], {
+        stdio: "pipe",
+        env: process.env,
+      });
+    }
 
     const formatLog = (data: Buffer | string) => {
       const timestamp = new Date().toISOString();
@@ -147,10 +153,10 @@ async function startAgent() {
       );
     };
 
-    agentProcess.stdout?.on("data", (data) =>
+    (agentProcess.stdout as any)?.on("data", (data: any) =>
       fs.appendFileSync(logPath, formatLog(data)),
     );
-    agentProcess.stderr?.on("data", (data) =>
+    (agentProcess.stderr as any)?.on("data", (data: any) =>
       fs.appendFileSync(logPath, formatLog(data)),
     );
 
@@ -325,23 +331,36 @@ ipcMain.handle(
   "agent-request",
   async (_event, request: IpcRequest): Promise<IpcResponse> => {
     return new Promise((resolve) => {
-      const client = net.createConnection(SOCKET_PATH, () => {
-        client.write(JSON.stringify(request) + "\n");
-      });
+      let retries = 5;
+      const tryConnect = () => {
+        const client = net.createConnection(SOCKET_PATH, () => {
+          client.write(JSON.stringify(request) + "\n");
+        });
 
-      client.on("data", (data) => {
-        try {
-          const response = JSON.parse(data.toString());
-          resolve(response);
-        } catch (e) {
-          resolve({ success: false, error: "Failed to parse agent response" });
-        }
-        client.end();
-      });
+        client.on("data", (data) => {
+          try {
+            const response = JSON.parse(data.toString());
+            resolve(response);
+          } catch (e) {
+            resolve({
+              success: false,
+              error: "Failed to parse agent response",
+            });
+          }
+          client.end();
+        });
 
-      client.on("error", (err) => {
-        resolve({ success: false, error: `Socket error: ${err.message}` });
-      });
+        client.on("error", (err: any) => {
+          if (err.code === "ENOENT" && retries > 0) {
+            retries--;
+            setTimeout(tryConnect, 200);
+          } else {
+            resolve({ success: false, error: `Socket error: ${err.message}` });
+          }
+        });
+      };
+
+      tryConnect();
     });
   },
 );
