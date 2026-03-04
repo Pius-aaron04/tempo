@@ -16,7 +16,13 @@ echo "Building Agent..."
 pnpm --filter @tempo/agent build
 
 
-# 4. Build UI
+# 4. Rebuild Native Modules for Electron
+echo "Rebuilding Native Modules..."
+cd node_modules/better-sqlite3
+npm run build-release -- --target=25.9.8 --dist-url=https://electronjs.org/headers
+cd ../..
+
+# 5. Build UI
 echo "Building UI & Packaging App..."
 pnpm --filter @tempo/ui dist
 

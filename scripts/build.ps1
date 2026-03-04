@@ -15,7 +15,14 @@ Write-Host "Building Agent..." -ForegroundColor Green
 pnpm --filter @tempo/agent build
 if ($LASTEXITCODE -ne 0) { Write-Error "Build failed at agent build step"; exit 1 }
 
-# 4. Build UI
+# 4. Rebuild Native Modules for Electron
+Write-Host "Rebuilding Native Modules..." -ForegroundColor Green
+Push-Location node_modules/better-sqlite3
+npm run build-release -- --target=25.9.8 --dist-url=https://electronjs.org/headers
+if ($LASTEXITCODE -ne 0) { Write-Error "Build failed at rebuild native step"; exit 1 }
+Pop-Location
+
+# 5. Build UI
 Write-Host "Building UI & Packaging App..." -ForegroundColor Green
 pnpm --filter @tempo/ui dist
 if ($LASTEXITCODE -ne 0) { Write-Error "Build failed at UI dist step"; exit 1 }
