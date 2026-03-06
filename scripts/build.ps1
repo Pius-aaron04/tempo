@@ -18,7 +18,7 @@ if ($LASTEXITCODE -ne 0) { Write-Error "Build failed at agent build step"; exit 
 # 4. Rebuild Native Modules for Electron
 Write-Host "Rebuilding Native Modules..." -ForegroundColor Green
 Push-Location node_modules/better-sqlite3
-npm run build-release -- --target=25.9.8 --dist-url=https://electronjs.org/headers
+cmd.exe /c "npm run build-release -- --target=25.9.8 --dist-url=https://electronjs.org/headers"
 if ($LASTEXITCODE -ne 0) { Write-Error "Build failed at rebuild native step"; exit 1 }
 Pop-Location
 
