@@ -7,11 +7,15 @@ echo "Starting Tempo Build (Linux/macOS)..."
 echo "Installing dependencies..."
 pnpm install
 
-# 2. Build Contracts
+# 2. Set up typescript
+echo "Setting up typescript..."
+pnpm install -g typescript
+
+# 3. Build Contracts
 echo "Building Contracts..."
 pnpm --filter @tempo/contracts build
 
-# 3. Build & Package Agent
+# 4. Build & Package Agent
 echo "Building Agent..."
 pnpm --filter @tempo/agent build
 

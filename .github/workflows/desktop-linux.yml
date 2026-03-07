@@ -22,9 +22,6 @@ jobs:
           node-version: 18
           cache: "pnpm"
 
-      - name: Setup Typescript
-        run: pnpm install -g typescript
-
       - name: Build & Package (Linux)
         run: |
           chmod +x scripts/build.sh
