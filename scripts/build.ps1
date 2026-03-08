@@ -1,9 +1,8 @@
 Write-Host "Starting Tempo Build (Windows)..." -ForegroundColor Cyan
 
 # remove lock file
-Remove-Item pnpm-lock.yaml -Force
-Remove-Item node_modules -Recurse -Force
-
+if (Test-Path pnpm-lock.yaml) { Remove-Item pnpm-lock.yaml -Force }
+if (Test-Path node_modules) { Remove-Item node_modules -Recurse -Force }
 # 1. Install Dependencies
 Write-Host "Installing dependencies..." -ForegroundColor Green
 pnpm install
