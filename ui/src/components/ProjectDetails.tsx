@@ -119,7 +119,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectPath, onB
                                         <XAxis type="number" hide />
                                         <YAxis dataKey="file_path" type="category" width={150} tickFormatter={formatFileName} tick={{ fontSize: 12 }} />
                                         <Tooltip
-                                            formatter={(val: number | undefined) => [formatTime(val || 0), 'Duration']}
+                                            formatter={(val: any) => [formatTime(Number(val) || 0), 'Duration']}
                                             labelFormatter={(label) => formatFileName(String(label))}
                                             cursor={{ fill: 'transparent' }}
                                         />

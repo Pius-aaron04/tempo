@@ -416,7 +416,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                                         <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
                                     ))}
                                 </Pie>
-                                <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} />
+                                <RechartsTooltip formatter={(val: any) => formatTime(Number(val) || 0)} />
                                 <Legend verticalAlign="bottom" height={36} />
                             </PieChart>
                         </ResponsiveContainer>
@@ -442,7 +442,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                                         <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
                                     ))}
                                 </Pie>
-                                <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} />
+                                <RechartsTooltip formatter={(val: any) => formatTime(Number(val) || 0)} />
                                 <Legend verticalAlign="bottom" height={36} />
                             </PieChart>
                         </ResponsiveContainer>
@@ -468,7 +468,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ sessions, onProjectClick }
                                         <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
                                     ))}
                                 </Pie>
-                                <RechartsTooltip formatter={(val: number | undefined) => formatTime(val || 0)} />
+                                <RechartsTooltip formatter={(val: any) => formatTime(Number(val) || 0)} />
                                 <Legend verticalAlign="bottom" height={36} />
                             </PieChart>
                         </ResponsiveContainer>
