@@ -14,4 +14,3 @@ agent/agent
 *.tgz
 agent/bin
 !ui/build/icon.png
-pnpm-lock.yaml
