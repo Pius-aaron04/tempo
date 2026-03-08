@@ -3,6 +3,9 @@ set -e
 
 echo "Starting Tempo Build (Linux/macOS)..."
 
+# remove lock file
+rm -rf pnpm-lock.yaml node_modules
+
 # 1. Install Dependencies
 echo "Installing dependencies..."
 pnpm install
